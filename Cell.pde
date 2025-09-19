@@ -112,7 +112,7 @@ public class Cell {
     float _p = 0.f;
     float _ux = 0.f, _uy = 0.f;
     float _Sxx = 0.f, _Syy = 0.f, _Sxy = 0.f;
-    float _Hxx = 0.f, _Hyy = 0.f, _Hxy = 0.f; // non-equilibrium stress tensor
+    //float _Hxx = 0.f, _Hyy = 0.f, _Hxy = 0.f; // non-equilibrium stress tensor
    
     for(int i=0; i<9 ;i++){
       int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
@@ -121,15 +121,16 @@ public class Cell {
       int idNy = (idY+cy[j]+Ny)%Ny;
 
       float _fi;
-      float _fiEq;
+      //float _fiEq;
       if(cells[idNx][idNy].getType()==CELL_TYPE.SOLID){
         float uxN = cells[idNx][idNy].getVelocityX();
         float uyN = cells[idNx][idNy].getVelocityY();
         _fi = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
-        _fiEq = computeFiEq(i, p, uxN, uyN);
+        //_fi = fi[j]; // bounce-back
+        //_fiEq = computeFiEq(i, p, uxN, uyN);
       } else { 
         _fi = cells[idNx][idNy].getFi(i);
-        _fiEq = computeFiEq(i, p, ux, uy);  
+        //_fiEq = computeFiEq(i, p, ux, uy);  
       }
       
       _p += _fi;
@@ -139,9 +140,9 @@ public class Cell {
       _Syy += _fi * (cy[i]*cy[i]-1.f/3.f);
       _Sxy += _fi * (cx[i]*cy[i]);
       
-      _Hxx += cx[i] * cx[i] * (_fi-_fiEq);
-      _Hyy += cy[i] * cy[i] * (_fi-_fiEq);
-      _Hxy += cx[i] * cy[i] * (_fi-_fiEq);
+      //_Hxx += cx[i] * cx[i] * (_fi-_fiEq);
+      //_Hyy += cy[i] * cy[i] * (_fi-_fiEq);
+      //_Hxy += cx[i] * cy[i] * (_fi-_fiEq);
     }
     
     // (Guo forcing, Krueger p.233f) for volume force
@@ -169,12 +170,12 @@ public class Cell {
     float tau = p_nu/cs2 + 0.5f;
     
     // Smagorinsky-Lilly subgrid turbulence model, source: https://arxiv.org/pdf/comp-gas/9401004.pdf, in the eq. below (26), it is "tau_0" not "nu_0", and "sqrt(2)/rho" (they call "rho" "n") is missing
-    float Q = _Hxx*_Hxx + _Hyy*_Hyy + 2.f*_Hxy*_Hxy; // Q = H*H, turbulent eddy viscosity nut = (C*Delta)^2*|S|, intensity of local strain rate tensor |S|=sqrt(2*S*S)
-    tau = (tau + sqrt(tau*tau + 0.76421222f * sqrt(Q) / max(1e-3f,_p))) * 0.5f; // 0.76421222 = 18*sqrt(2)*(C*Delta)^2, C = 1/pi*(2/(3*CK))^(3/4) = Smagorinsky-Lilly constant, CK = 3/2 = Kolmogorov constant, Delta = 1 = lattice constant
+    //float Q = _Hxx*_Hxx + _Hyy*_Hyy + 2.f*_Hxy*_Hxy; // Q = H*H, turbulent eddy viscosity nut = (C*Delta)^2*|S|, intensity of local strain rate tensor |S|=sqrt(2*S*S)
+    //tau = (tau + sqrt(tau*tau + 0.76421222f * sqrt(Q) / max(1e-3f,_p))) * 0.5f; // 0.76421222 = 18*sqrt(2)*(C*Delta)^2, C = 1/pi*(2/(3*CK))^(3/4) = Smagorinsky-Lilly constant, CK = 3/2 = Kolmogorov constant, Delta = 1 = lattice constant
     
     p = _p;
-    ux = _ux;
-    uy = _uy;
+    ux = _ux + 0.5f*_fx;
+    uy = _uy + 0.5f*_fy;
     Sxx = (tau-1.f)/(2.f*tau)*(_Sxx-_Syy+_uy*_uy+_fx*_ux-_fy*_uy) + (tau+1.f)/(2.f*tau)*_ux*_ux + _fx*_ux;
     Syy = (tau-1.f)/(2.f*tau)*(_Syy-_Sxx+_ux*_ux+_fy*_uy-_fx*_ux) + (tau+1.f)/(2.f*tau)*_uy*_uy + _fy*_uy;
     Sxy = (1.f-1.f/tau)*_Sxy + _ux*_uy/tau + (2.f*tau-1.f)/(2.f*tau)*(_fx*_uy+_fy*_ux);
