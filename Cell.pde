@@ -47,8 +47,8 @@ public class Cell {
   public int getColor() {
     if (flag == CELL_TYPE.SOLID) return color(0);
   
-    float speed = constrain(sqrt(ux*ux + uy*uy)*2.5f, 0.f, 1.f);
-    //float speed = constrain(p/3.f, 0.f, 1.f);
+    float val = constrain(sqrt(ux*ux + uy*uy)*2.5f, 0.f, 1.f);
+    //float val = constrain(p/3.f, 0.f, 1.f);
         
     int palette[] = { 
       color(70, 70, 219),
@@ -59,12 +59,10 @@ public class Cell {
       color(107, 0, 0),
       color(223, 77, 77)
     };
-        
-    float segment = speed * 5.99f;
-    int i = int(floor(segment));
-    int c = lerpColor(palette[i],palette[i+1], segment-i);
     
-    return c;
+    float x = constrain(val,0.00001f,0.99999f)*(palette.length-1.f);
+    int idx = (int)floor(x);
+    return lerpColor(palette[idx],palette[idx+1],  x-(float)(idx));
   }
   
   protected float getFi(int p_i) {
@@ -82,11 +80,11 @@ public class Cell {
   
   // ----------------------------------------------------- FUNCTIONS -----------------------------------------------------
   private float computeFiEq(int p_i, float p_p, float p_ux, float p_uy) {
-     return w[p_i] * (p_p + (cx[p_i]*p_ux + cy[p_i]*p_uy)/cs2 + 0.5f*sq(cx[p_i]*p_ux + cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2);
+    return w[p_i] * (p_p + (cx[p_i]*p_ux + cy[p_i]*p_uy)/cs2 + 0.5f*sq(cx[p_i]*p_ux + cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2);
   }
   
   private float computeFi(int p_i, float p_p, float p_ux, float p_uy, float p_Sxx, float p_Syy, float p_Sxy) {
-    return w[p_i]* ( p_p +
+    return w[p_i] * (p_p +
                      (cx[p_i]*p_ux + cy[p_i]*p_uy)/cs2 +
                      0.5f*( 2.f*p_Sxy*cx[p_i]*cy[p_i] + p_Sxx*(cx[p_i]*cx[p_i]-1.f/3.f) + p_Syy*(cy[p_i]*cy[p_i]-1.f/3.f))/cs4 +
                      0.5f*( (cx[p_i]*cx[p_i]*cy[p_i]-cy[p_i]*1.f/3.f) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
@@ -107,12 +105,11 @@ public class Cell {
     // pressure force = 0
     // viscosity force = 0
     // surface tension force = 0
-    // divide f by rho or pressure ?
     
-    float _p = 0.f;
-    float _ux = 0.f, _uy = 0.f;
-    float _Sxx = 0.f, _Syy = 0.f, _Sxy = 0.f;
-    //float _Hxx = 0.f, _Hyy = 0.f, _Hxy = 0.f; // non-equilibrium stress tensor
+    float _p = 0.f; // temporary pressure
+    float _ux = 0.f, _uy = 0.f; // temporary velocity
+    float _Sxx = 0.f, _Syy = 0.f, _Sxy = 0.f; // temporary stress tensor
+    float _Hxx = 0.f, _Hyy = 0.f, _Hxy = 0.f; // non-equilibrium stress tensor
    
     for(int i=0; i<9 ;i++){
       int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
@@ -120,17 +117,15 @@ public class Cell {
       int idNx = (idX+cx[j]+Nx)%Nx;
       int idNy = (idY+cy[j]+Ny)%Ny;
 
-      float _fi;
-      //float _fiEq;
+      float _fi, _fiEq;
       if(cells[idNx][idNy].getType()==CELL_TYPE.SOLID){
         float uxN = cells[idNx][idNy].getVelocityX();
         float uyN = cells[idNx][idNy].getVelocityY();
-        _fi = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
-        //_fi = fi[j]; // bounce-back
-        //_fiEq = computeFiEq(i, p, uxN, uyN);
+        _fi = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy); //or _fi = fi[j]; for bounce-back
+        _fiEq = computeFiEq(i, p, uxN, uyN);
       } else { 
         _fi = cells[idNx][idNy].getFi(i);
-        //_fiEq = computeFiEq(i, p, ux, uy);  
+        _fiEq = computeFiEq(i, p, ux, uy);  
       }
       
       _p += _fi;
@@ -140,9 +135,9 @@ public class Cell {
       _Syy += _fi * (cy[i]*cy[i]-1.f/3.f);
       _Sxy += _fi * (cx[i]*cy[i]);
       
-      //_Hxx += cx[i] * cx[i] * (_fi-_fiEq);
-      //_Hyy += cy[i] * cy[i] * (_fi-_fiEq);
-      //_Hxy += cx[i] * cy[i] * (_fi-_fiEq);
+      _Hxx += (_fi-_fiEq) * (cx[i]*cx[i]-1.f/3.f);
+      _Hyy += (_fi-_fiEq) * (cy[i]*cy[i]-1.f/3.f);
+      _Hxy += (_fi-_fiEq) * (cx[i]*cy[i]);
     }
     
     // (Guo forcing, Krueger p.233f) for volume force
@@ -150,16 +145,10 @@ public class Cell {
     _fy /= max(1e-3f,_p);
     _ux += 0.5f*_fx;
     _uy += 0.5f*_fy;
+    
+    // moving boundary => // apply Dirichlet velocity boundaries if necessary (Krueger p.180, rho_solid=1)
     // => calculate_forcing_terms(uxn, uyn, uzn, fxn, fyn, fzn, Fin); // calculate volume force terms Fin from velocity field (Guo forcing, Krueger p.233f)
-    /*
-    void calculate_forcing_terms(const float ux, const float uy, const float uz, const float fx, const float fy, const float fz, float* Fin) { // calculate volume force terms Fin from velocity field (Guo forcing, Krueger p.233f)
-      const float uF = -0.33333334f * fma(ux, fx, fma(uy, fy, uz * fz)); // 3D
-      Fin[0] = 9.0f * def_w0 * uF; // 000 (identical for all velocity sets)
-      for (uint i = 1u; i < def_velocity_set; i++) { // loop is entirely unrolled by compiler, no unnecessary FLOPs are happening
-        Fin[i] = 9.0f * w(i) * fma(c(i) * fx + c(def_velocity_set + i) * fy + c(2u * def_velocity_set + i) * fz, c(i) * ux + c(def_velocity_set + i) * uy + c(2u * def_velocity_set + i) * uz + 0.33333334f, uF);
-      }
-    }
-    */
+    // fiT = 9.f * w[i] * ( (cx[i]*Fx+cy[i]*Fy) * (cx[i]*ux+cy[i]*uy)*cs2 - (ux*Fx+uy*Fy)*cs2 );
         
     float _uNorm = sqrt(_ux*_ux+_uy*_uy);
     if(_uNorm>cs){
@@ -167,11 +156,8 @@ public class Cell {
       _uy *= cs/_uNorm;
     }
     
-    float tau = p_nu/cs2 + 0.5f;
-    
-    // Smagorinsky-Lilly subgrid turbulence model, source: https://arxiv.org/pdf/comp-gas/9401004.pdf, in the eq. below (26), it is "tau_0" not "nu_0", and "sqrt(2)/rho" (they call "rho" "n") is missing
-    //float Q = _Hxx*_Hxx + _Hyy*_Hyy + 2.f*_Hxy*_Hxy; // Q = H*H, turbulent eddy viscosity nut = (C*Delta)^2*|S|, intensity of local strain rate tensor |S|=sqrt(2*S*S)
-    //tau = (tau + sqrt(tau*tau + 0.76421222f * sqrt(Q) / max(1e-3f,_p))) * 0.5f; // 0.76421222 = 18*sqrt(2)*(C*Delta)^2, C = 1/pi*(2/(3*CK))^(3/4) = Smagorinsky-Lilly constant, CK = 3/2 = Kolmogorov constant, Delta = 1 = lattice constant
+    // Smagorinsky-Lilly subgrid turbulence model, source: https://arxiv.org/pdf/comp-gas/9401004.pdf : 0.09f = 8/(PI*PI*27*cs2) => sqrt(8) / (PI*PI*sqrt(27)*sqrt(cb(Ck))*cs2) with Ck=1.5 
+    float tau = 0.5f + p_nu/cs2 + 0.09f * sqrt(_Hxx*_Hxx + _Hyy*_Hyy + 2.f*_Hxy*_Hxy) / ((cs2+2.f*p_nu)*max(1e-3f,_p));
     
     p = _p;
     ux = _ux + 0.5f*_fx;
