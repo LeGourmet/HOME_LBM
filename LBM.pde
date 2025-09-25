@@ -55,10 +55,10 @@ public class LBM {
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].reconstructDDFs();
+        grid[i][j].streaming(i, j, Nx, Ny, grid);
     
     for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
-          grid[i][j].streamCollide(i, j, Nx, Ny, grid, nu, rho, Fx, Fy);
+          grid[i][j].collision(nu, rho, Fx, Fy);
   }
 }

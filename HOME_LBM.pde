@@ -8,13 +8,13 @@ void setup(){
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(inSphere(i,j,20,50,100) || j<1 || j>=simulation.getNy()-1){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 0.f, 0.f, 1.f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f));
       }else if(i==0) {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 0.f, 0.0f, 1.f, 0.15f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 0.f, 0.0f, 1.f, 0.15f, 0.f, 0.f));
       } else if(i==simulation.getNx()-1) {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 0.f, 0.f, 1.f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f));
       } else {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 0.f, 0.f, 1.f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f));
       }
     }
     

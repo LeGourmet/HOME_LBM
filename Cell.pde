@@ -1,8 +1,11 @@
-public enum CELL_TYPE { SOLID, FLUID, EQUILIBRIUM };
+// should use 4 time finer discreate field for phi (2 per directions)
+// should update hi at half time fi(t) => fi(t+1) ; hi(t) => hi(t+0.5) => hi(t+1)
+
+public enum CELL_TYPE { SOLID, FLUID, AIR, EQUILIBRIUM };
 
 public class Cell {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
-  private CELL_TYPE flag;
+  private CELL_TYPE type;
   
   private float Fx;
   private float Fy;
@@ -13,14 +16,22 @@ public class Cell {
   private float Sxx;
   private float Syy;
   private float Sxy;
+  private float phi;
   
-  private float[] fi = new float[9]; 
+  private float _p = 0.f;
+  private float _ux = 0.f;
+  private float _uy = 0.f;
+  private float _Sxx = 0.f;
+  private float _Syy = 0.f;
+  private float _Sxy = 0.f;
+  private float _Hxx = 0.f;
+  private float _Hyy = 0.f;
+  private float _Hxy = 0.f;
+  private float _phi = 0.f;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
-  public Cell(CELL_TYPE p_flag, float p_Fx, float p_Fy, float p_p, float p_ux, float p_uy) {
-    this.flag = p_flag;
-    
-    if(flag == CELL_TYPE.SOLID) return;
+  public Cell(CELL_TYPE p_type, float p_Fx, float p_Fy, float p_p, float p_ux, float p_uy, float p_phi) {
+    this.type = p_type;
     
     this.Fx = p_Fx;
     this.Fy = p_Fy;
@@ -28,24 +39,26 @@ public class Cell {
     this.p = p_p;
     this.ux = p_ux;
     this.uy = p_uy;
-    this.Sxx = (ux*ux - cs2);
-    this.Syy = (uy*uy - cs2);
-    this.Sxy = (ux*uy);  // Syx = Sxy; // symetric tensor
-    
-    for(int i=0; i<9 ;i++)
-      this.fi[i] = computeFiEq(i, p, ux, uy);
+    this.Sxx = (p_ux*p_ux - cs2);
+    this.Syy = (p_uy*p_uy - cs2);
+    this.Sxy = (p_ux*p_uy);  // Syx = Sxy; // symetric tensor
+    this.phi = p_phi;
   } 
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
-  public CELL_TYPE getType() { return this.flag; } 
+  public CELL_TYPE getType() { return this.type; } 
   public float getForceX() { return this.Fx; }
   public float getForceY() { return this.Fy; }
   public float getPressure() { return this.p; }
   public float getVelocityX() { return this.ux; }
   public float getVelocityY() { return this.uy; }
-  
+  public float getSxx() { return this.Sxx; }
+  public float getSyy() { return this.Syy; }
+  public float getSxy() { return this.Sxy; }
+  public float getPhi() { return this.phi; }
+    
   public int getColor() {
-    if (flag == CELL_TYPE.SOLID) return color(0);
+    if (type == CELL_TYPE.SOLID) return color(0);
   
     float val = constrain(sqrt(ux*ux + uy*uy)*2.5f, 0.f, 1.f);
     //float val = constrain(p/3.f, 0.f, 1.f);
@@ -65,80 +78,118 @@ public class Cell {
     return lerpColor(palette[idx],palette[idx+1],  x-(float)(idx));
   }
   
-  protected float getFi(int p_i) {
-    if(p_i<0 || p_i>=9) return 0.f; 
-    return this.fi[p_i]; 
-  }
-  
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
-  public void setType(CELL_TYPE p_type) { this.flag = p_type; } 
+  public void setType(CELL_TYPE p_type) { this.type = p_type; } 
   public void setForceX(float p_force ) { this.Fx = p_force; }
   public void setForceY(float p_force) { this.Fy = p_force; }
-  public void setPressure(float p_pressure) { this.p = p_pressure; }
+  public void setPressure(float p_pressure) { this.p = max(1e-3,p_pressure); }
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
+  public void setPhi(float p_phi) { this.phi = constrain(p_phi,0.f,1.f); }
   
   // ----------------------------------------------------- FUNCTIONS -----------------------------------------------------
   private float computeFiEq(int p_i, float p_p, float p_ux, float p_uy) {
-    return w[p_i] * (p_p + (cx[p_i]*p_ux + cy[p_i]*p_uy)/cs2 + 0.5f*sq(cx[p_i]*p_ux + cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2);
+    return D2Q9_w[p_i] * (p_p + (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 + 0.5f*sq(D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2);
   }
   
   private float computeFi(int p_i, float p_p, float p_ux, float p_uy, float p_Sxx, float p_Syy, float p_Sxy) {
-    return w[p_i] * (p_p +
-                     (cx[p_i]*p_ux + cy[p_i]*p_uy)/cs2 +
-                     0.5f*( 2.f*p_Sxy*cx[p_i]*cy[p_i] + p_Sxx*(cx[p_i]*cx[p_i]-1.f/3.f) + p_Syy*(cy[p_i]*cy[p_i]-1.f/3.f))/cs4 +
-                     0.5f*( (cx[p_i]*cx[p_i]*cy[p_i]-cy[p_i]*1.f/3.f) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
-                            (cx[p_i]*cy[p_i]*cy[p_i]-cx[p_i]*1.f/3.f) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6);
+    return D2Q9_w[p_i] * (p_p +
+                          (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
+                          0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-1.f/3.f) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-1.f/3.f))/cs4 +
+                          0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*1.f/3.f) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
+                                 (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*1.f/3.f) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6);
   }
   
-  public void reconstructDDFs() {
-    if(flag != CELL_TYPE.FLUID) return;
-    
-    for(int i=0; i<9 ;i++)
-      fi[i] = computeFi(i, p, ux, uy, Sxx, Syy, Sxy);
+  private float computeHiEq(int p_i, float p_phi, float p_ux, float p_uy) {
+    return D2Q5_w[p_i] * p_phi * (1.f + (D2Q5_cx[p_i]*p_ux + D2Q5_cy[p_i]*p_uy)/cs2);
   }
   
-  public void streamCollide(int idX, int idY, int Nx, int Ny, Cell[][] cells, float p_nu, float p_rho, float p_fx, float p_fy) {    
-    if(flag != CELL_TYPE.FLUID) return;
+  private float computeHi(int p_i, float p_phi, float p_ux, float p_uy) {
+    return computeFiEq(p_i, p_phi, p_ux, p_uy);
+  }
+  
+  public void streaming(int p_idX, int p_idY, int p_Nx, int p_Ny, Cell[][] p_cells) {
+    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
     
-    float _fx=p_fx+Fx, _fy=p_fy+Fy;
-    // pressure force = 0
-    // viscosity force = 0
-    // surface tension force = 0
-    
-    float _p = 0.f; // temporary pressure
-    float _ux = 0.f, _uy = 0.f; // temporary velocity
-    float _Sxx = 0.f, _Syy = 0.f, _Sxy = 0.f; // temporary stress tensor
-    float _Hxx = 0.f, _Hyy = 0.f, _Hxy = 0.f; // non-equilibrium stress tensor
+    _p = 0.f;
+    _ux = 0.f;
+    _uy = 0.f;
+    _Sxx = 0.f;
+    _Syy = 0.f;
+    _Sxy = 0.f;
+    _Hxx = 0.f;
+    _Hyy = 0.f;
+    _Hxy = 0.f;
    
     for(int i=0; i<9 ;i++){
       int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
       
-      int idNx = (idX+cx[j]+Nx)%Nx;
-      int idNy = (idY+cy[j]+Ny)%Ny;
+      int idNx = (p_idX+D2Q9_cx[j]+p_Nx)%p_Nx;
+      int idNy = (p_idY+D2Q9_cy[j]+p_Ny)%p_Ny;
 
-      float _fi, _fiEq;
-      if(cells[idNx][idNy].getType()==CELL_TYPE.SOLID){
-        float uxN = cells[idNx][idNy].getVelocityX();
-        float uyN = cells[idNx][idNy].getVelocityY();
-        _fi = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy); //or _fi = fi[j]; for bounce-back
-        _fiEq = computeFiEq(i, p, uxN, uyN);
+      CELL_TYPE typeN = p_cells[idNx][idNy].getType();
+      float pN = p_cells[idNx][idNy].getPressure();
+      float uxN = p_cells[idNx][idNy].getVelocityX();
+      float uyN = p_cells[idNx][idNy].getVelocityY();
+      float SxxN = p_cells[idNx][idNy].getSxx();
+      float SyyN = p_cells[idNx][idNy].getSyy();
+      float SxyN = p_cells[idNx][idNy].getSxy();
+
+      float _fi, _NeqFi;
+      if(typeN==CELL_TYPE.SOLID){
+        _fi = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
+        _NeqFi = _fi - computeFiEq(i, p, uxN, uyN);
+      } else if(typeN==CELL_TYPE.EQUILIBRIUM){
+        _fi = computeFiEq(i, pN, uxN, uyN);
+        _NeqFi = 0.f;
       } else { 
-        _fi = cells[idNx][idNy].getFi(i);
-        _fiEq = computeFiEq(i, p, ux, uy);  
+        _fi = computeFi(i, pN, uxN, uyN, SxxN, SyyN, SxyN);
+        _NeqFi = _fi - computeFiEq(i, pN, uxN, uyN);
       }
       
       _p += _fi;
-      _ux += _fi * cx[i];
-      _uy += _fi * cy[i];
-      _Sxx += _fi * (cx[i]*cx[i]-1.f/3.f);
-      _Syy += _fi * (cy[i]*cy[i]-1.f/3.f);
-      _Sxy += _fi * (cx[i]*cy[i]);
+      _ux += _fi * D2Q9_cx[i];
+      _uy += _fi * D2Q9_cy[i];
+      _Sxx += _fi * (D2Q9_cx[i]*D2Q9_cx[i]-1.f/3.f);
+      _Syy += _fi * (D2Q9_cy[i]*D2Q9_cy[i]-1.f/3.f);
+      _Sxy += _fi * (D2Q9_cx[i]*D2Q9_cy[i]);
       
-      _Hxx += (_fi-_fiEq) * (cx[i]*cx[i]-1.f/3.f);
-      _Hyy += (_fi-_fiEq) * (cy[i]*cy[i]-1.f/3.f);
-      _Hxy += (_fi-_fiEq) * (cx[i]*cy[i]);
+      _Hxx += _NeqFi * (D2Q9_cx[i]*D2Q9_cx[i]-1.f/3.f);
+      _Hyy += _NeqFi * (D2Q9_cy[i]*D2Q9_cy[i]-1.f/3.f);
+      _Hxy += _NeqFi * (D2Q9_cx[i]*D2Q9_cy[i]);
     }
+    
+    _phi = 0.f;
+    //for(int i=0; i<5 ;i++)
+      //hi[i] = computeHi(i, phi, ux, uy);
+  }
+  
+  public void collision(float p_nu, float p_rho, float p_fx, float p_fy) {    
+    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
+    
+    float _fx=0.f, _fy=0.f;
+    
+    // body forces
+    _fx += p_fx+Fx;
+    _fy += p_fy+Fy;
+    
+    //float GphiX = 3 * D2Q5_w[i]*D2Q5_cx[i]*cellsphi[] ;
+    //float GphiY = ;
+    
+    //float GrhoX = (p_rho1 - p_rho2) * GphiX;
+    //float GrhoY = (p_rho1 - p_rho2) * GphiY;
+    
+    // pressure force
+    //_fx += -_p * GrhoX;
+    //_fy += -_p * GrhoY;
+    
+    // viscosity force
+    _fx += 0.f;
+    _fy += 0.f;
+    
+    // surface tension force
+    _fx += 0.f;
+    _fy += 0.f;
     
     // (Guo forcing, Krueger p.233f) for volume force
     _fx /= max(1e-3f,_p);
