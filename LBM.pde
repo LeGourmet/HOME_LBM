@@ -7,14 +7,12 @@ public class LBM {
   private float Fy;
   
   private int t;
-  
-  private float nu;
-  private float rho;
+
   
   private Cell grid[][];
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------
-  public LBM(int p_Nx, int p_Ny, float p_Fx, float p_Fy, float p_nu, float p_rho) {
+  public LBM(int p_Nx, int p_Ny, float p_Fx, float p_Fy) {
     this.Nx = p_Nx;
     this.Ny = p_Ny;
     
@@ -22,9 +20,6 @@ public class LBM {
     this.Fy = p_Fy;
     
     this.t  = 0;
-    
-    this.nu = p_nu;
-    this.rho = p_rho;
     
     this.grid = new Cell[Nx][Ny];
   }  
@@ -35,8 +30,6 @@ public class LBM {
   public float getForceX() { return this.Fx; }
   public float getForceY() { return this.Fy; }
   public int getT() { return this.t; }
-  public float getFluidNu() { return this.nu; }
-  public float getFluidRho() { return this.rho; }
   public Cell getCell(int p_x, int p_y) { 
     if(p_x<0 || p_x>=Nx || p_y<0 || p_y>=Ny) return null; 
     return this.grid[p_x][p_y];
@@ -59,6 +52,6 @@ public class LBM {
     
     for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
-          grid[i][j].collision(nu, rho, Fx, Fy);
+          grid[i][j].collision(i, j, Nx, Ny, grid, Fx, Fy);
   }
 }
