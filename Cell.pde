@@ -57,25 +57,6 @@ public class Cell {
   public float getSyy() { return this.Syy; }
   public float getSxy() { return this.Sxy; }
   public float getPhi() { return this.phi; }
-    
-  /*public int getColorPressure() {
-    float val = constrain(p/3.f, 0.f, 1.f);
-  }*/
-    
-  public int getColorType() {
-    if (type == CELL_TYPE.SOLID) return color(127);
-    
-    int palette[] = { 
-      color(0, 0, 255),
-      color(255, 0, 0)
-    };
-  
-    float val = constrain(phi, 0.f, 1.f);
-  
-    float x = constrain(val,0.00001f,0.99999f)*(palette.length-1.f);
-    int idx = (int)floor(x);
-    return lerpColor(palette[idx],palette[idx+1],  x-(float)(idx));
-  }
   
   public int getColorVelocity() {
     if (type == CELL_TYPE.SOLID) return color(0);
@@ -97,7 +78,7 @@ public class Cell {
     return lerpColor(palette[idx],palette[idx+1],  x-(float)(idx));
   }
   
-  public int getColor(){
+  public int getColorType(){
     if (type == CELL_TYPE.SOLID) return color(127);
     
     int palette[] = { 
@@ -105,7 +86,7 @@ public class Cell {
       color(60, 60, 200)
     };
   
-    float val = constrain(phi, 0.f, 1.f);
+    float val = (phi<0.5f) ? 0.f : 1.f; ///constrain(phi, 0.f, 1.f);
   
     float x = constrain(val,0.00001f,0.99999f)*(palette.length-1.f);
     int idx = (int)floor(x);
