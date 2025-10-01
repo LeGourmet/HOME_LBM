@@ -3,6 +3,10 @@ final float rho_air = 0.0001f;
 final float rho_fluid = 0.1f;
 final float nu_air = 0.001f;
 final float nu_fluid = 0.001f;
+final float mo_air = 0.5f;
+final float mo_fluid = 0.5f;
+final float ca_air = 0.005f;
+final float ca_fluid = 0.0005f;
 final float interfacial_thickness = 1.f;
 
 // ----------------------------------------------------- LBM CONST -----------------------------------------------------

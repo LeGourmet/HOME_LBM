@@ -11,12 +11,14 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  simulation.setGlobalForceX(0.00075f);
+  //simulation.setGlobalForceX(0.00075f);
+  //simulation.setGlobalForceX(0.000075f);
+  
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.25f, 0.f, 0.f));
       } else if (i==simulation.getNx()-1) {
         simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f));  
       } else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){
@@ -46,7 +48,22 @@ void draw(){
     
   if(!paused) simulation.doTimeStep();
   
-  text("framerate : "+int(frameRate), 10, 15);
+  float maxP = 0.f;
+  float maxU = 0.f;
+  for(int i=0; i<simulation.getNx() ;i++) {
+    for(int j=0; j<simulation.getNy() ;j++) {
+      maxP = max(maxP, simulation.getCell(i,j).getPressure());
+      maxU = max(maxU, sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY())));
+    }
+  }
+  
+  text("max P : "+maxP,10,15); 
+  text("max U : "+maxU,10,30);
+  
+  //text("framerate : "+int(frameRate), 10, 15);
+  // text centered 'type'
+  // text left 'time t'
+  // big middle if pause
 }
 
 void keyPressed(){
@@ -61,6 +78,6 @@ void mousePressed(){
     for(int j=(mouseY/SCREEN_ZOOM-radius); j<(mouseY/SCREEN_ZOOM+radius) ;j++) {
       if(i>=0 && i<simulation.getNx() && j>=0 && j<simulation.getNy() && inSphere(i,j,radius,mouseX/SCREEN_ZOOM,mouseY/SCREEN_ZOOM))
         if(simulation.getCell(i,j).getType()==CELL_TYPE.FLUID) 
-          simulation.getCell(i,j).setPressure(2.f);
+          simulation.getCell(i,j).setPressure(20.f);
   }
 }
