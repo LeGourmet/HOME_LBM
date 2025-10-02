@@ -4,6 +4,9 @@ int GRID_SIZE_X = 300;
 int GRID_SIZE_Y = 100;
 int SCREEN_ZOOM = 3;
 
+boolean paused = true;
+COLOR_TYPE colorType = COLOR_TYPE.VELOCITY_MAG;
+
 void settings(){
     size(GRID_SIZE_X*SCREEN_ZOOM,GRID_SIZE_Y*SCREEN_ZOOM,P2D);
 }
@@ -14,11 +17,10 @@ void setup(){
   //simulation.setGlobalForceX(0.00075f);
   //simulation.setGlobalForceX(0.000075f);
   
-  
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.25f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.2f, 0.f, 0.f));
       } else if (i==simulation.getNx()-1) {
         simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f));  
       } else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){
@@ -28,14 +30,14 @@ void setup(){
       }
     }
     
-    frameRate(120);
+  frameRate(120);
 }
 
 void draw(){
   loadPixels();
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
-      color col = simulation.getCell(i,j).getColor(colorType);
+      color col = simulation.getColor(i,j,colorType);
       for(int a=0; a<SCREEN_ZOOM ;a++) {
         for(int b=0; b<SCREEN_ZOOM ;b++) {
           pixels[(j*SCREEN_ZOOM+a) * width + (i*SCREEN_ZOOM+b)] = col;
@@ -48,26 +50,29 @@ void draw(){
     
   if(!paused) simulation.doTimeStep();
   
+  float minP = Float.MAX_VALUE;
   float maxP = 0.f;
+  float minU = Float.MAX_VALUE;
   float maxU = 0.f;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
+      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
+      minP = min(minP, simulation.getCell(i,j).getPressure());
       maxP = max(maxP, simulation.getCell(i,j).getPressure());
-      maxU = max(maxU, sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY())));
+      float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
+      minU = min(minU, tmpU);
+      maxU = max(maxU, tmpU);
     }
   }
   
-  text("max P : "+maxP,10,15); 
-  text("max U : "+maxU,10,30);
-  
-  //text("framerate : "+int(frameRate), 10, 15);
-  // text centered 'type'
-  // text left 'time t'
-  // big middle if pause
+  text("Display : "+(colorType==COLOR_TYPE.PRESSURE ? "Pressure" : (colorType==COLOR_TYPE.VELOCITY_MAG ? "Velocity - Magnitude" : (colorType==COLOR_TYPE.VELOCITY_GRAD ? "Velocity - Gradient" : "Type"))),10,15);
+  text("Frame : "+simulation.getT(),10,30);
+  text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
+  text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
 }
 
 void keyPressed(){
-  if(key=='p' || key=='P') paused = !paused;
+  if(keyCode==' ') paused = !paused;
   if(key==TAB) colorType = COLOR_TYPE.values()[(colorType.ordinal() + 1) % COLOR_TYPE.values().length];
 }
 

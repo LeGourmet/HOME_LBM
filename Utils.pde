@@ -24,8 +24,7 @@ final int[] D2Q5_cx = { 0, 1,-1, 0, 0};
 final int[] D2Q5_cy = { 0, 0, 0, 1,-1};
 
 // ------------------------------------------------------- UTILS -------------------------------------------------------
-boolean paused = false;
-COLOR_TYPE colorType = COLOR_TYPE.VELOCITY;
+int mod(int x, int n) { return (x+n)%n; }
 
 boolean inSphere(int x, int y, int r, int cx, int cy){
   return ((cx-x)*(cx-x)+(cy-y)*(cy-y)) < (r*r);

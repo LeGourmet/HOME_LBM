@@ -1,3 +1,5 @@
+public enum COLOR_TYPE { PRESSURE, VELOCITY_MAG, VELOCITY_GRAD, TYPE };
+
 public class LBM {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
   private int Nx;
@@ -21,11 +23,12 @@ public class LBM {
     this.GlobalForceY = 0.f;
     this.ForceFieldX = new float[this.Nx][this.Ny];
     this.ForceFieldY = new float[this.Nx][this.Ny];
-    for(int i=0; i<this.Nx ;i++)
+    for(int i=0; i<this.Nx ;i++){
       for(int j=0; j<this.Ny ;j++){
         this.ForceFieldX[i][j] = 0.f;
         this.ForceFieldY[i][j] = 0.f;    
       }
+    }
     
     this.grid = new Cell[this.Nx][this.Ny];
   }  
@@ -50,6 +53,41 @@ public class LBM {
     return this.grid[p_x][p_y];
   }
   
+  public int getColor(int p_x, int p_y, COLOR_TYPE p_colorType) {
+    if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return color(0);
+    
+    if (grid[p_x][p_y].type == CELL_TYPE.SOLID) return color(0);
+    
+    int palette[];
+    float val;
+    
+    if(p_colorType == COLOR_TYPE.PRESSURE){
+      palette = new int[]{color(68,1,84), color(59,82,139), color(33,145,140), color(94,201,98), color(253,231,37)};
+      val = constrain(grid[p_x][p_y].p*0.5f, 0.f, 1.f);
+    }else if(p_colorType == COLOR_TYPE.VELOCITY_MAG){
+      palette = new int[]{color(70,70,219), color(0,255,91), color(0,128,0), color(255,255,0), color(255,96,0), color(107,0,0), color(223,77,77)};
+      val = constrain(sqrt(grid[p_x][p_y].ux*grid[p_x][p_y].ux + grid[p_x][p_y].uy*grid[p_x][p_y].uy)/cs, 0.f, 1.f);
+    }else if(p_colorType == COLOR_TYPE.VELOCITY_GRAD){
+      palette = new int[]{color(100,100,255), color(200,200,200), color(255,100,100)};
+      
+      float dx = 0.5f * (grid[(p_x+1+Nx)%Nx][p_y].ux - grid[(p_x-1+Nx)%Nx][p_y].ux);
+      float dy = 0.5f * (grid[p_x][(p_y+1+Ny)%Ny].uy - grid[p_x][(p_y-1+Ny)%Ny].uy);
+      float _dx = 0.5f * (grid[(p_x+1+Nx)%Nx][p_y].ux + grid[(p_x-1+Nx)%Nx][p_y].ux);
+      float _dy = 0.5f * (grid[p_x][(p_y+1+Ny)%Ny].uy + grid[p_x][(p_y-1+Ny)%Ny].uy);
+      float gradMag = Math.signum(grid[p_x][p_y].ux*_dx+grid[p_x][p_y].uy*_dy)*sqrt(dx*dx + dy*dy)/cs;
+      gradMag = (gradMag+1.f)*0.5f;
+      
+      val = constrain(gradMag, 0.f, 1.f);
+    }else{
+      palette = new int[]{color(40,40,180), color(150,150,200), color(221,221,221), color(200,150,150), color(180,40,40)};
+      val = (grid[p_x][p_y].phi<0.5f) ? 0.f : 1.f;
+    }
+      
+    float x = val*0.999f*(palette.length-1.f);
+    int idx = (int)floor(x);
+    return lerpColor(palette[idx],palette[idx+1],  x-(float)(idx));
+  }
+  
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setGlobalForceX(float p_force) { this.GlobalForceX = p_force; }
   public void setGlobalForceY(float p_force) { this.GlobalForceY = p_force; }
@@ -70,12 +108,20 @@ public class LBM {
   void doTimeStep(){    
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].streaming(i, j, this);
+        grid[i][j].flowStreaming(i, j, this);
     
     for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
-          grid[i][j].collision(i, j, this);
-  
+          grid[i][j].flowCollision(i, j, this);
+    
+    for(int i=0; i<Nx ;i++)
+        for(int j=0; j<Ny ;j++)
+          grid[i][j].phaseStreaming(i, j, this);
+    
+    for(int i=0; i<Nx ;i++)
+        for(int j=0; j<Ny ;j++)
+          grid[i][j].phaseCollision(i, j, this);
+    
     t++;
   }
 }
