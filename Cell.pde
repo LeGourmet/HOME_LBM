@@ -188,35 +188,155 @@ public class Cell {
   
   // -------------------------------------------------- FUNCTIONS PHASE -------------------------------------------------- 
   public void phaseStreaming(int p_idX, int p_idY, LBM p_simulation){
-    /*for(int i=0; i<5 ;i++){
+    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
+    
+    for(int i=0; i<5 ;i++){
       int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
       
       int idNx = (p_idX+D2Q5_cx[j]+p_simulation.getNx())%p_simulation.getNx();
       int idNy = (p_idY+D2Q5_cy[j]+p_simulation.getNy())%p_simulation.getNy();
       
-      CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-      float phiN = p_simulation.getCell(idNx,idNy).getPhi();
-      float uxN = p_simulation.getCell(idNx,idNy).getVelocityX();
-      float uyN = p_simulation.getCell(idNx,idNy).getVelocityY();
+      /*Mat5 Mh = {
+        {           1.f,               1.f,               1.f,               1.f,               1.f },
+        {           -ux,            1.f-ux,           -1.f-ux,               -ux,               -ux },
+        {           -uy,               -uy,               -uy,            1.f-uy,           -1.f-uy },
+        { sq(ux)-sq(uy), sq(1.f-ux)-sq(uy), sq(1.f+ux)-sq(uy), sq(ux)-sq(1.f-uy), sq(ux)-sq(1.f+uy) },
+        { sq(ux)+sq(uy), sq(1.f-ux)+sq(uy), sq(1.f+ux)+sq(uy), sq(ux)+sq(1.f-uy), sq(ux)+sq(1.f+uy) }
+      };
       
-      if(typeN==CELL_TYPE.SOLID){
-        _phi +=  computeHi(i, phi, uxN, uyN);
-      } else if(typeN==CELL_TYPE.EQUILIBRIUM){
-        _phi += computeHiEq(i, phiN, uxN, uyN);
-      } else { 
-        _phi += computeHi(i, phiN, uxN, uyN);
-      }
-    }*/
+      float mo = mo_air + p_phi * (mo_fluid - mo_air);
+          
+      float Sd = 1.f/(4.f*mo+0.5f);
+      Mat7 Sh = {
+        { 1.f, 0.f, 0.f, 0.f, 0.f },
+        { 0.f,  Sd, 0.f, 0.f, 0.f },
+        { 0.f, 0.f,  Sd, 0.f, 0.f },
+        { 0.f, 0.f, 0.f, 1.f, 0.f },
+        { 0.f, 0.f, 0.f, 0.f, 1.f }
+      };
+      
+      float _Sd = (8.f*mo)/(8.f*mo+1.f);
+      Mat7 _Sh = {
+        { 0.5f, 1.f, 1.f,  1.f,  1.f },
+        {  1.f, _Sd, 1.f,  1.f,  1.f },
+        {  1.f, 1.f, _Sd,  1.f,  1.f },
+        {  1.f, 1.f, 1.f, 0.5f,  1.f },
+        {  1.f, 1.f, 1.f,  1.f, 0.5f }
+      };
+      
+      Mat5 Mh_inv = {
+        { -ux*ux-uy*uy+1.f, -2.f*ux,  -2.f*uy,    0.f,  -1.f },
+        { 0.5f*ux*(ux+1.f),  ux+0.5f,     0.f,  0.25f, 0.25f },
+        { 0.5f*ux*(ux-1.f),  ux-0.5f,     0.f,  0.25f, 0.25f },
+        { 0.5f*uy*(uy+1.f),      0.f, uy+0.5f, -0.25f, 0.25f },
+        { 0.5f*uy*(uy-1.f),      0.f, uy-0.5f, -0.25f, 0.25f }
+      };*/
+
+      float mo = mo_air + phi * (mo_fluid - mo_air);
+      
+      float sM1 = 1.f/(4.f*mo+0.5f);
+      float[][] M1 = {
+        {1.f - 2.f * sq(ux) + 2.f * sM1 * sq(ux)                    - 2.f * sq(uy) + 2.f * sM1 * sq(uy), 
+         1.f - sq(1.f - ux) - 2.f * sM1 * ( 1.f - ux) * ux - sq(ux) - 2.f * sq(uy) + 2.f * sM1 * sq(uy),
+         1.f - sq(1.f - ux) - 2.f * sM1 * (-1.f - ux) * ux - sq(ux) - 2.f * sq(uy) + 2.f * sM1 * sq(uy),
+         1.f - 2.f * sq(ux) + 2.f * sM1 * sq(ux) - sq(1.f - uy)     -       sq(uy) - 2.f * sM1 * (1.f - uy) * uy,
+         1.f - 2.f * sq(ux) + 2.f * sM1 * sq(ux) - sq(1.f - uy)     -       sq(uy) - 2.f * sM1 * (-1.f - uy) * uy}, 
+        {0.5f * ux * (1.f + ux) -         ux  * ( sM1 * (0.5f + ux)) + 0.25f * (sq(ux) - sq(uy))       + 0.25f * (sq(ux) + sq(uy)), 
+         0.5f * ux * (1.f + ux) + ( 1.f - ux) * ( sM1 * (0.5f + ux)) + 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)),
+         0.5f * ux * (1.f + ux) + (-1.f - ux) * ( sM1 * (0.5f + ux)) + 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)),
+         0.5f * ux * (1.f + ux) -         ux  * ( sM1 * (0.5f + ux)) + 0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy)),
+         0.5f * ux * (1.f + ux) -         ux  * ( sM1 * (0.5f + ux)) + 0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy))},
+        {- ( sM1 * (-0.5f + ux)) *          ux + 0.5f * (-1.f + ux) * ux + 0.25f * (sq(ux) - sq(uy))       + 0.25f * (sq(ux) + sq(uy)),
+           ( sM1 * (-0.5f + ux)) * ( 1.f - ux) + 0.5f * (-1.f + ux) * ux + 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)),
+           ( sM1 * (-0.5f + ux)) * (-1.f - ux) + 0.5f * (-1.f + ux) * ux + 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)),
+         - ( sM1 * (-0.5f + ux)) *          ux + 0.5f * (-1.f + ux) * ux + 0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy)),
+         - ( sM1 * (-0.5f + ux)) *          ux + 0.5f * (-1.f + ux) * ux + 0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy))},
+        {0.5f * uy * (1.f + uy) - 0.25f * (sq(ux) - sq(uy))       + 0.25f * (sq(ux) + sq(uy))       -         uy  * ( sM1 * (0.5f + uy)),
+         0.5f * uy * (1.f + uy) - 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)) -         uy  * ( sM1 * (0.5f + uy)),
+         0.5f * uy * (1.f + uy) - 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)) -         uy  * ( sM1 * (0.5f + uy)),
+         0.5f * uy * (1.f + uy) - 0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy)) +  (1.f - uy) * ( sM1 * (0.5f + uy)),
+         0.5f * uy * (1.f + uy)  -0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy)) + (-1.f - uy) * ( sM1 * (0.5f + uy))},
+        {- ( sM1 * (-0.5f + uy)) * uy          + 0.5f * (-1.f + uy) * uy - 0.25f * (sq(ux) - sq(uy))       + 0.25f * (sq(ux) + sq(uy)),
+         - ( sM1 * (-0.5f + uy)) * uy          + 0.5f * (-1.f + uy) * uy - 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)),
+         - ( sM1 * (-0.5f + uy)) * uy          + 0.5f * (-1.f + uy) * uy - 0.25f * (sq(1.f - ux) - sq(uy)) + 0.25f * (sq(1.f - ux) + sq(uy)),
+           ( sM1 * (-0.5f + uy)) * ( 1.f - uy) + 0.5f * (-1.f + uy) * uy - 0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy)),
+           ( sM1 * (-0.5f + uy)) * (-1.f - uy) + 0.5f * (-1.f + uy) * uy - 0.25f * (sq(ux) - sq(1.f - uy)) + 0.25f * (sq(ux) + sq(1.f - uy))}
+      };
+      
+      float[] hi_neq = {hi[0]-computeHiEq(0,phi,ux,uy), hi[1]-computeHiEq(1,phi,ux,uy), hi[2]-computeHiEq(2,phi,ux,uy), hi[3]-computeHiEq(3,phi,ux,uy), hi[4]-computeHiEq(4,phi,ux,uy)};
+
+      // M1*(hi-hieq)
+      float[] r1 = {0.f,0.f,0.f,0.f,0.f};
+      for(int a=0; a<5 ;a++)
+        for(int b=0; b<5 ;b++)
+          r1[a] += M1[b][a]*hi_neq[b]; // raw major ?
+      
+      float sM2 = (8.f*mo)/(8.f*mo+1.f);
+      float[][] M2 = {
+        {-1.f - 2.f * ux - 2.f * uy + 0.5f * (1.f - sq(ux) - sq(uy)) + (sq(ux) - sq(uy))       * (- 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) -         ux  * (-2.f * sM2* ux - sq(ux) - 2.f * uy - sq(uy)) -         uy  * (-2.f * ux - sq(ux) - 2.f * sM2* uy - sq(uy)) + (0.5f - 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) * (sq(ux) + sq(uy)),
+         -1.f - 2.f * ux - 2.f * uy + 0.5f * (1.f - sq(ux) - sq(uy)) + (sq(1.f - ux) - sq(uy)) * (- 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) + ( 1.f - ux) * (-2.f * sM2* ux - sq(ux) - 2.f * uy - sq(uy)) -         uy  * (-2.f * ux - sq(ux) - 2.f * sM2* uy - sq(uy)) + (0.5f - 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) * (sq(1.f - ux) + sq(uy)),
+         -1.f - 2.f * ux - 2.f * uy + 0.5f * (1.f - sq(ux) - sq(uy)) + (sq(1.f - ux) - sq(uy)) * (- 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) + (-1.f - ux) * (-2.f * sM2* ux - sq(ux) - 2.f * uy - sq(uy)) -         uy  * (-2.f * ux - sq(ux) - 2.f * sM2* uy - sq(uy)) + (0.5f - 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) * (sq(1.f - ux) + sq(uy)),
+         -1.f - 2.f * ux - 2.f * uy + 0.5f * (1.f - sq(ux) - sq(uy)) + (sq(ux) - sq(1.f - uy)) * (- 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) -         ux  * (-2.f * sM2* ux - sq(ux) - 2.f * uy - sq(uy)) + ( 1.f - uy) * (-2.f * ux - sq(ux) - 2.f * sM2* uy - sq(uy)) + (0.5f - 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) * (sq(ux) + sq(1.f - uy)),
+         -1.f - 2.f * ux - 2.f * uy + 0.5f * (1.f - sq(ux) - sq(uy)) + (sq(ux) - sq(1.f - uy)) * (- 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) -         ux  * (-2.f * sM2* ux - sq(ux) - 2.f * uy - sq(uy)) + (-1.f - uy) * (-2.f * ux - sq(ux) - 2.f * sM2* uy - sq(uy)) + (0.5f - 2.f * ux - sq(ux) - 2.f * uy - sq(uy)) * (sq(ux) + sq(1.f - uy))},
+        {1.f + ux + 0.25f * ux * (1.f + ux) -         ux  * (0.5f + sM2* (0.5f + ux) + 0.5f * ux * (1.f + ux)) - (1.f + ux + 0.5f * ux * (1.f + ux)) *         uy  + (0.875f + ux + 0.5f * ux * (1.f + ux)) *       (sq(ux) - sq(uy)) + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(ux) + sq(uy)),
+         1.f + ux + 0.25f * ux * (1.f + ux) + ( 1.f - ux) * (0.5f + sM2* (0.5f + ux) + 0.5f * ux * (1.f + ux)) - (1.f + ux + 0.5f * ux * (1.f + ux)) *         uy  + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(1.f - ux) - sq(uy)) + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(1.f - ux) + sq(uy)),
+         1.f + ux + 0.25f * ux * (1.f + ux) + (-1.f - ux) * (0.5f + sM2* (0.5f + ux) + 0.5f * ux * (1.f + ux)) - (1.f + ux + 0.5f * ux * (1.f + ux)) *         uy  + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(1.f - ux) - sq(uy)) + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(1.f - ux) + sq(uy)),
+         1.f + ux + 0.25f * ux * (1.f + ux) -         ux  * (0.5f + sM2* (0.5f + ux) + 0.5f * ux * (1.f + ux)) + (1.f + ux + 0.5f * ux * (1.f + ux)) * ( 1.f - uy) + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(ux) + sq(1.f - uy)) + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(ux) - sq(1.f - uy)),
+         1.f + ux + 0.25f * ux * (1.f + ux) -         ux  * (0.5f + sM2* (0.5f + ux) + 0.5f * ux * (1.f + ux)) + (1.f + ux + 0.5f * ux * (1.f + ux)) * (-1.f - uy) + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(ux) + sq(1.f - uy)) + (0.875f + ux + 0.5f * ux * (1.f + ux)) * (sq(ux) - sq(1.f - uy))},
+        {ux + 0.25f * (-1.f + ux) * ux -         ux  * (0.5f + sM2* (-0.5f + ux) + 0.5f * (-1.f + ux) * ux) - ( ux + 0.5f * (-1.f + ux) * ux) *         uy  + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(ux) - sq(uy))       + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(ux) + sq(uy)),
+         ux + 0.25f * (-1.f + ux) * ux + ( 1.f - ux) * (0.5f + sM2* (-0.5f + ux) + 0.5f * (-1.f + ux) * ux) - ( ux + 0.5f * (-1.f + ux) * ux) *         uy  + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(1.f - ux) - sq(uy)) + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(1.f - ux) + sq(uy)),
+         ux + 0.25f * (-1.f + ux) * ux + (-1.f - ux) * (0.5f + sM2* (-0.5f + ux) + 0.5f * (-1.f + ux) * ux) - ( ux + 0.5f * (-1.f + ux) * ux) *         uy  + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(1.f - ux) - sq(uy)) + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(1.f - ux) + sq(uy)),
+         ux + 0.25f * (-1.f + ux) * ux -         ux  * (0.5f + sM2* (-0.5f + ux) + 0.5f * (-1.f + ux) * ux) + ( ux + 0.5f * (-1.f + ux) * ux) * ( 1.f - uy) + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(ux) - sq(1.f - uy)) + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(ux) + sq(1.f - uy)),
+         ux + 0.25f * (-1.f + ux) * ux -         ux  * (0.5f + sM2* (-0.5f + ux) + 0.5f * (-1.f + ux) * ux) + ( ux + 0.5f * (-1.f + ux) * ux) * (-1.f - uy) + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(ux) - sq(1.f - uy)) + (-0.125f + ux + 0.5f * (-1.f + ux) * ux) * (sq(ux) + sq(1.f - uy))},
+        {0.5f + uy + 0.25f * uy * (1.f + uy) + (sq(ux) + sq(uy))       * (0.375f + uy + 0.5f * uy * (1.f + uy)) -         ux  * (0.5f + uy + 0.5f * uy * (1.f + uy)) + (sq(ux) - sq(uy))       * (0.625f + uy + 0.5f * uy * (1.f + uy)) -         uy  * ( sM2* (0.5f + uy) + 0.5f * uy * (1.f + uy)),
+         0.5f + uy + 0.25f * uy * (1.f + uy) + (sq(1.f - ux) + sq(uy)) * (0.375f + uy + 0.5f * uy * (1.f + uy)) + ( 1.f - ux) * (0.5f + uy + 0.5f * uy * (1.f + uy)) + (sq(1.f - ux) - sq(uy)) * (0.625f + uy + 0.5f * uy * (1.f + uy)) -         uy  * ( sM2* (0.5f + uy) + 0.5f * uy * (1.f + uy)),
+         0.5f + uy + 0.25f * uy * (1.f + uy) + (sq(1.f - ux) + sq(uy)) * (0.375f + uy + 0.5f * uy * (1.f + uy)) + (-1.f - ux) * (0.5f + uy + 0.5f * uy * (1.f + uy)) + (sq(1.f - ux) - sq(uy)) * (0.625f + uy + 0.5f * uy * (1.f + uy)) -         uy  * ( sM2* (0.5f + uy) + 0.5f * uy * (1.f + uy)), 
+         0.5f + uy + 0.25f * uy * (1.f + uy) + (sq(ux) + sq(1.f - uy)) * (0.375f + uy + 0.5f * uy * (1.f + uy)) -         ux  * (0.5f + uy + 0.5f * uy * (1.f + uy)) + (sq(ux) - sq(1.f - uy)) * (0.625f + uy + 0.5f * uy * (1.f + uy)) + ( 1.f - uy) * ( sM2* (0.5f + uy) + 0.5f * uy * (1.f + uy)),
+         0.5f + uy + 0.25f * uy * (1.f + uy) + (sq(ux) + sq(1.f - uy)) * (0.375f + uy + 0.5f * uy * (1.f + uy)) -         ux  * (0.5f + uy + 0.5f * uy * (1.f + uy)) + (sq(ux) - sq(1.f - uy)) * (0.625f + uy + 0.5f * uy * (1.f + uy)) + (-1.f - uy) * ( sM2* (0.5f + uy) + 0.5f * uy * (1.f + uy))},
+        {-0.5f + uy + 0.25f * (-1.f + uy) * uy -         uy  * ( sM2* (-0.5f + uy) + 0.5f * (-1.f + uy) * uy) -         ux  * (-0.5f + uy + 0.5f * (-1.f + uy) * uy) + (-0.375f + uy + 0.5f * (-1.f + uy) * uy) * (sq(ux) - sq(uy))       + (-0.625f + uy + 0.5f * (-1.f + uy) * uy) * (sq(ux) + sq(uy)),
+         -0.5f + uy + 0.25f * (-1.f + uy) * uy -         uy  * ( sM2* (-0.5f + uy) + 0.5f * (-1.f + uy) * uy) + ( 1.f - ux) * (-0.5f + uy + 0.5f * (-1.f + uy) * uy) + (-0.375f + uy + 0.5f * (-1.f + uy) * uy) * (sq(1.f - ux) - sq(uy)) + (-0.625f + uy + 0.5f * (-1.f + uy) * uy) * (sq(1.f - ux) + sq(uy)),
+         -0.5f + uy + 0.25f * (-1.f + uy) * uy -         uy  * ( sM2* (-0.5f + uy) + 0.5f * (-1.f + uy) * uy) + (-1.f - ux) * (-0.5f + uy + 0.5f * (-1.f + uy) * uy) + (-0.375f + uy + 0.5f * (-1.f + uy) * uy) * (sq(1.f - ux) - sq(uy)) + (-0.625f + uy + 0.5f * (-1.f + uy) * uy) * (sq(1.f - ux) + sq(uy)),
+         -0.5f + uy + 0.25f * (-1.f + uy) * uy + ( 1.f - uy) * ( sM2* (-0.5f + uy) + 0.5f * (-1.f + uy) * uy) -         ux  * (-0.5f + uy + 0.5f * (-1.f + uy) * uy) + (-0.375f + uy + 0.5f * (-1.f + uy) * uy) * (sq(ux) - sq(1.f - uy)) + (-0.625f + uy + 0.5f * (-1.f + uy) * uy) * (sq(ux) + sq(1.f - uy)),
+         -0.5f + uy + 0.25f * (-1.f + uy) * uy + (-1.f - uy) * ( sM2* (-0.5f + uy) + 0.5f * (-1.f + uy) * uy) -          ux * (-0.5f + uy + 0.5f * (-1.f + uy) * uy) + (-0.375f + uy + 0.5f * (-1.f + uy) * uy) * (sq(ux) - sq(1.f - uy)) + (-0.625f + uy + 0.5f * (-1.f + uy) * uy) * (sq(ux) + sq(1.f - uy))}
+      };
+       
+      float GphiX = (D2Q5_w[1]*p_simulation.getCell(mod(p_idX+1,p_simulation.getNx()),p_idY).getPhi() - D2Q5_w[2]*p_simulation.getCell(mod(p_idX-1,p_simulation.getNx()),p_idY).getPhi())/cs2;
+      float GphiY = (D2Q5_w[3]*p_simulation.getCell(p_idX,mod(p_idY+1,p_simulation.getNy())).getPhi() - D2Q5_w[4]*p_simulation.getCell(p_idX,mod(p_idY-1,p_simulation.getNy())).getPhi())/cs2;
+      float[] H = {
+         4.f*phi*(1.f-phi) / interfacial_thickness * D2Q5_w[0] * (D2Q5_cx[0]*GphiX + D2Q5_cy[0]*GphiY),
+         4.f*phi*(1.f-phi) / interfacial_thickness * D2Q5_w[1] * (D2Q5_cx[1]*GphiX + D2Q5_cx[1]*GphiY),
+         4.f*phi*(1.f-phi) / interfacial_thickness * D2Q5_w[2] * (D2Q5_cx[2]*GphiX + D2Q5_cx[2]*GphiY),
+         4.f*phi*(1.f-phi) / interfacial_thickness * D2Q5_w[3] * (D2Q5_cx[3]*GphiX + D2Q5_cx[3]*GphiY),
+         4.f*phi*(1.f-phi) / interfacial_thickness * D2Q5_w[4] * (D2Q5_cx[4]*GphiX + D2Q5_cx[4]*GphiY) 
+       };
+          
+      // M2*H
+      float[] r2 = {0.f,0.f,0.f,0.f,0.f};
+      for(int a=0; a<5 ;a++)
+        for(int b=0; b<5 ;b++)
+          r2[a] += M2[b][a]*H[b]; // raw major ?
+      
+      // hi - M1*(hi-hieq) + M2*(H)
+      hi[0] += -r1[0] + r2[0];
+      hi[1] += -r1[1] + r2[1];
+      hi[2] += -r1[2] + r2[2];
+      hi[3] += -r1[3] + r2[3];
+      hi[4] += -r1[4] + r2[4];
+    }
   }
   
   public void phaseCollision(int p_idX, int p_idY, LBM p_simulation){
+    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
+    
     phi = 0.f;
     
     for(int i=0; i<5 ;i++){
       int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
+      
       int idNx = mod(p_idX+D2Q5_cx[j],p_simulation.getNx());
       int idNy = mod(p_idY+D2Q5_cy[j],p_simulation.getNy());
-      //phi += hi[]; // => it or that 
+      
+      phi += (p_simulation.getCell(idNx,idNy).getType()==CELL_TYPE.SOLID) ? hi[j] : simulation.getCell(idNx,idNy).hi[i]; 
     }
   }
 }

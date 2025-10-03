@@ -25,6 +25,8 @@ void setup(){
         simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f));  
       } else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){
         simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
+      } else if(inSphere(i,j,GRID_SIZE_X/60,20,40)) {
+        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, 1.f));
       } else {
         simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, 0.f));
       }
@@ -43,7 +45,6 @@ void draw(){
           pixels[(j*SCREEN_ZOOM+a) * width + (i*SCREEN_ZOOM+b)] = col;
         }
       }
-    
     }
   }
   updatePixels();
