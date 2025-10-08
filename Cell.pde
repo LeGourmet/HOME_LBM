@@ -148,16 +148,16 @@ public class Cell {
     fy += p_simulation.getForceY(p_idX, p_idY);
     
     // pressure force : /100.f
-    //fx += 0.001f * -p * GrhoX;
-    //fy += 0.001f * -p * GrhoY;
+    fx += 0.001f * -p * GrhoX;
+    fy += 0.001f * -p * GrhoY;
     
     // viscosity force : *cs/10.f
-    //fx += 0.005f * ( (ux*ux-Sxx) * GrhoX + (ux*uy-Sxy) * GrhoY);
-    //fy += 0.005f * ( (uy*ux-Sxy) * GrhoX + (uy*uy-Syy) * GrhoY);
+    fx += 0.001f * ( (ux*ux-Sxx) * GrhoX + (ux*uy-Sxy) * GrhoY);
+    fy += 0.001f * ( (uy*ux-Sxy) * GrhoX + (uy*uy-Syy) * GrhoY);
     
     // surface tension force : abs(ca_fluid - ca_air) < cs/100.f
-    //fx += (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
-    //fx += (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
+    fx += 0.001f * (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
+    fx += 0.001f * (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
     //fx += (ca_fluid - ca_air) * 4.f/interfacial_thickness * GphiSQ * GphiX; // fully missible => 0 
     //fy += (ca_fluid - ca_air) * 4.f/interfacial_thickness * GphiSQ * GphiY; // fully missible => 0 
         
