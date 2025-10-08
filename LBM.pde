@@ -1,4 +1,4 @@
-public enum COLOR_TYPE { PRESSURE, VELOCITY_MAG, VELOCITY_GRAD, TYPE };
+public enum COLOR_TYPE { PRESSURE, VELOCITY, TYPE };
 
 public class LBM {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
@@ -64,24 +64,15 @@ public class LBM {
     if(p_colorType == COLOR_TYPE.PRESSURE){
       palette = new int[]{color(68,1,84), color(59,82,139), color(33,145,140), color(94,201,98), color(253,231,37)};
       val = constrain(grid[p_x][p_y].p*0.5f, 0.f, 1.f);
-    }else if(p_colorType == COLOR_TYPE.VELOCITY_MAG){
+    }else if(p_colorType == COLOR_TYPE.VELOCITY){
       palette = new int[]{color(70,70,219), color(0,255,91), color(0,128,0), color(255,255,0), color(255,96,0), color(107,0,0), color(223,77,77)};
       val = constrain(sqrt(grid[p_x][p_y].ux*grid[p_x][p_y].ux + grid[p_x][p_y].uy*grid[p_x][p_y].uy)/cs, 0.f, 1.f);
-    }else if(p_colorType == COLOR_TYPE.VELOCITY_GRAD){
-      palette = new int[]{color(100,100,255), color(200,200,200), color(255,100,100)};
-      
-      float dx = 0.5f * (grid[(p_x+1+Nx)%Nx][p_y].ux - grid[(p_x-1+Nx)%Nx][p_y].ux);
-      float dy = 0.5f * (grid[p_x][(p_y+1+Ny)%Ny].uy - grid[p_x][(p_y-1+Ny)%Ny].uy);
-      float _dx = 0.5f * (grid[(p_x+1+Nx)%Nx][p_y].ux + grid[(p_x-1+Nx)%Nx][p_y].ux);
-      float _dy = 0.5f * (grid[p_x][(p_y+1+Ny)%Ny].uy + grid[p_x][(p_y-1+Ny)%Ny].uy);
-      float gradMag = Math.signum(grid[p_x][p_y].ux*_dx+grid[p_x][p_y].uy*_dy)*sqrt(dx*dx + dy*dy)/cs;
-      gradMag = (gradMag+1.f)*0.5f;
-      
-      val = constrain(gradMag, 0.f, 1.f);
     }else{
-      palette = new int[]{color(40,40,180), color(150,150,200), color(221,221,221), color(200,150,150), color(180,40,40)};
-      val = (grid[p_x][p_y].phi<0.5f) ? 0.f : 1.f;
-    }
+      //palette = new int[]{color(40,40,180), color(150,150,200), color(221,221,221), color(200,150,150), color(180,40,40)};
+      //val = (grid[p_x][p_y].phi>0.99f) ? 1.f : (grid[p_x][p_y].phi>0.01f) ? 0.f : 0.5f;
+      palette = new int[]{color(40,40,180), color(180,40,40)};
+      val = constrain(grid[p_x][p_y].phi,0,1);
+  }
       
     float x = val*0.999f*(palette.length-1.f);
     int idx = (int)floor(x);
@@ -114,13 +105,15 @@ public class LBM {
         for(int j=0; j<Ny ;j++)
           grid[i][j].flowCollision(i, j, this);
     
-    for(int i=0; i<Nx ;i++)
+    for(int a=0; a<2 ;a++){
+      for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
           grid[i][j].phaseStreaming(i, j, this);
-    
-    for(int i=0; i<Nx ;i++)
+        
+      for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
           grid[i][j].phaseCollision(i, j, this);
+    }
     
     t++;
   }

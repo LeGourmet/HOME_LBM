@@ -1,11 +1,13 @@
 LBM simulation;
 
-int GRID_SIZE_X = 300;
+int GRID_SIZE_X = 400;
 int GRID_SIZE_Y = 100;
 int SCREEN_ZOOM = 3;
 
 boolean paused = true;
-COLOR_TYPE colorType = COLOR_TYPE.VELOCITY_MAG;
+COLOR_TYPE colorType = COLOR_TYPE.TYPE;
+
+//int nextFrame=0;
 
 void settings(){
     size(GRID_SIZE_X*SCREEN_ZOOM,GRID_SIZE_Y*SCREEN_ZOOM,P2D);
@@ -14,21 +16,23 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  //simulation.setGlobalForceX(0.00075f);
+  //simulation.setGlobalForceX(-0.000016f);
+  simulation.setGlobalForceX(0.0000001f);
+  //simulation.setGlobalForceX(0.00001f); // desbrun gravity usage
   //simulation.setGlobalForceX(0.000075f);
+  //simulation.setGlobalForceX(0.00075f);
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.2f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f));
       } else if (i==simulation.getNx()-1) {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f));  
-      } else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
-      } else if(inSphere(i,j,GRID_SIZE_X/60,20,40)) {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, 1.f));
-      } else {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 1.f));  
+      } 
+      //else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){ simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.5f)); } 
+      else {
+        float phi = float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f;
+        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, phi));
       }
     }
     
@@ -49,12 +53,25 @@ void draw(){
   }
   updatePixels();
     
+  /*if(!paused && simulation.getT() == nextFrame) {
+    String name = "./video/image_";
+    int id = nextFrame/10;
+         if(id<10) name += "00000000";
+    else if(id<100) name += "0000000";
+    else if(id<1000) name += "000000";
+    else if(id<10000) name += "00000";
+    save(name+id+".png");
+    nextFrame += 10;
+  }*/
+    
   if(!paused) simulation.doTimeStep();
   
   float minP = Float.MAX_VALUE;
-  float maxP = 0.f;
+  float maxP = Float.MIN_VALUE;
   float minU = Float.MAX_VALUE;
-  float maxU = 0.f;
+  float maxU = Float.MIN_VALUE;
+  float minPhi = Float.MAX_VALUE;
+  float maxPhi = Float.MIN_VALUE;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
       if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
@@ -63,13 +80,16 @@ void draw(){
       float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
       minU = min(minU, tmpU);
       maxU = max(maxU, tmpU);
+      minPhi = min(minPhi, simulation.getCell(i,j).getPhi());
+      maxPhi = max(maxPhi, simulation.getCell(i,j).getPhi());
     }
   }
   
-  text("Display : "+(colorType==COLOR_TYPE.PRESSURE ? "Pressure" : (colorType==COLOR_TYPE.VELOCITY_MAG ? "Velocity - Magnitude" : (colorType==COLOR_TYPE.VELOCITY_GRAD ? "Velocity - Gradient" : "Type"))),10,15);
+  text("Display : "+(colorType==COLOR_TYPE.PRESSURE ? "Pressure" : (colorType==COLOR_TYPE.VELOCITY ? "Velocity - Magnitude" : "Type")),10,15);
   text("Frame : "+simulation.getT(),10,30);
   text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
+  text("Phi : ["+nf(minPhi,0,3)+", "+nf(maxPhi,0,3)+"]",10,75);
 }
 
 void keyPressed(){
@@ -84,6 +104,6 @@ void mousePressed(){
     for(int j=(mouseY/SCREEN_ZOOM-radius); j<(mouseY/SCREEN_ZOOM+radius) ;j++) {
       if(i>=0 && i<simulation.getNx() && j>=0 && j<simulation.getNy() && inSphere(i,j,radius,mouseX/SCREEN_ZOOM,mouseY/SCREEN_ZOOM))
         if(simulation.getCell(i,j).getType()==CELL_TYPE.FLUID) 
-          simulation.getCell(i,j).setPressure(20.f);
+          simulation.getCell(i,j).setPressure(2.f);
   }
 }
