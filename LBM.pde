@@ -105,14 +105,14 @@ public class LBM {
         for(int j=0; j<Ny ;j++)
           grid[i][j].flowCollision(i, j, this);
     
-    for(int a=0; a<2 ;a++){
-      for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++)
-          grid[i][j].phaseStreaming(i, j, this);
-        
+    for(int a=0; a<1 ;a++){
       for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
           grid[i][j].phaseCollision(i, j, this);
+        
+      for(int i=0; i<Nx ;i++)
+        for(int j=0; j<Ny ;j++)
+          grid[i][j].phaseStreaming(i, j, this);
     }
     
     t++;

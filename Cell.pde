@@ -34,6 +34,7 @@ public class Cell {
     this.phi = p_phi;
     
     this.hi = new float[5];
+    for(int i=0; i<5 ;i++) this.hi[i] = computeHiEq(i,this.phi,this.ux,this.uy);
   } 
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
@@ -71,10 +72,6 @@ public class Cell {
   
   private float computeHiEq(int p_i, float p_phi, float p_ux, float p_uy) {
     return D2Q5_w[p_i] * p_phi * (1.f + (D2Q5_cx[p_i]*p_ux + D2Q5_cy[p_i]*p_uy)/cs2);
-  }
-  
-  private float computeHi(int p_i, float p_phi, float p_ux, float p_uy) {
-    return computeHiEq(p_i, p_phi, p_ux, p_uy);
   }
   
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
@@ -138,32 +135,29 @@ public class Cell {
                              D2Q5_w[2]*(p_simulation.getCell(mod(p_idX-1,p_simulation.getNx()),p_idY).getPhi()-phi) + 
                              D2Q5_w[3]*(p_simulation.getCell(p_idX,mod(p_idY+1,p_simulation.getNy())).getPhi()-phi) + 
                              D2Q5_w[4]*(p_simulation.getCell(p_idX,mod(p_idY-1,p_simulation.getNy())).getPhi()-phi) );
-                             
-    // external forces
-    float fx = 0.f;
-    float fy = 0.f;
+    //if((nGphi*0.6f) > (4.f*phi*(1.f-phi)/interfacial_thickness))
     
     // body forces
-    fx += p_simulation.getForceX(p_idX, p_idY);
-    fy += p_simulation.getForceY(p_idX, p_idY);
+    float fbx = p_simulation.getForceX(p_idX, p_idY);
+    float fby = p_simulation.getForceY(p_idX, p_idY);
     
-    // pressure force : /100.f
-    fx += 0.001f * -p * GrhoX;
-    fy += 0.001f * -p * GrhoY;
+    // pressure force : -P * cs2 * gradient(rho) : -P * gradient(rho)
+    float fpx = 0.f* -p * cs2 * GrhoX;
+    float fpy = 0.f* -p * cs2 * GrhoY;
     
-    // viscosity force : *cs/10.f
-    fx += 0.001f * ( (ux*ux-Sxx) * GrhoX + (ux*uy-Sxy) * GrhoY);
-    fy += 0.001f * ( (uy*ux-Sxy) * GrhoX + (uy*uy-Syy) * GrhoY);
+    // viscosity force : nu * [gradient(U) + transpose(grandient(u)] * gradient(rho)
+    float fvx = ( (ux*ux-Sxx) * GrhoX + (ux*uy-Sxy) * GrhoY);
+    float fvy = ( (uy*ux-Sxy) * GrhoX + (uy*uy-Syy) * GrhoY);
     
     // surface tension force : abs(ca_fluid - ca_air) < cs/100.f
-    fx += 0.001f * (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
-    fx += 0.001f * (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
+    float fsx = 0.f* (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
+    float fsy = 0.f* (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * (phi - 3.f*sq(phi) + 2.f*cb(phi)) + 3.f*interfacial_thickness/2.f * GphiSQ); // not missible => 1
     //fx += (ca_fluid - ca_air) * 4.f/interfacial_thickness * GphiSQ * GphiX; // fully missible => 0 
     //fy += (ca_fluid - ca_air) * 4.f/interfacial_thickness * GphiSQ * GphiY; // fully missible => 0 
         
-    // Newton second law of motion : SumForces = Mass * A
-    fx /= rho; 
-    fy /= rho;
+    // external forces : Newton second law of motion
+    float fx = fbx + (fpx+fvx+fsx)/rho; 
+    float fy = fby + (fpy+fvy+fsy)/rho;
     
     // ajoute de la pression jusqu'au buffer overflow ! => trouver mieux
     float _uNorm = sqrt(sq(_ux+0.5f*fx)+sq(_uy+0.5f*fy));
@@ -181,10 +175,9 @@ public class Cell {
   }
   
   // -------------------------------------------------- FUNCTIONS PHASE -------------------------------------------------- 
-  public void phaseStreaming(int p_idX, int p_idY, LBM p_simulation){
+  public void phaseCollision(int p_idX, int p_idY, LBM p_simulation){
     if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
     
-    //float mo = mo_air + phi * (mo_fluid - mo_air);
     float mo = 1.f/( (1.f-phi)/mo_air + phi/mo_fluid );
     float tau = 0.5f + mo/cs2;
       
@@ -332,7 +325,7 @@ public class Cell {
     }
   }
   
-  public void phaseCollision(int p_idX, int p_idY, LBM p_simulation){
+  public void phaseStreaming(int p_idX, int p_idY, LBM p_simulation){
     if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
     
     float _phi = 0.f;
@@ -346,6 +339,7 @@ public class Cell {
       _phi += (p_simulation.getCell(idNx,idNy).getType()==CELL_TYPE.SOLID) ? hi[j] : p_simulation.getCell(idNx,idNy).hi[i]; 
     }
     
-    phi = constrain((phi+_phi)/2.f,0.f,1.f);
+    //phi = constrain((phi+_phi)/2.f,0.f,1.f);
+    phi = constrain(_phi,0.f,1.f);  
   }
 }

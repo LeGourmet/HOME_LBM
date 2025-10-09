@@ -16,11 +16,7 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  //simulation.setGlobalForceX(-0.000016f);
-  simulation.setGlobalForceX(0.0000001f);
-  //simulation.setGlobalForceX(0.00001f); // desbrun gravity usage
-  //simulation.setGlobalForceX(0.000075f);
-  //simulation.setGlobalForceX(0.00075f);
+  simulation.setGlobalForceX(-0.000016f);
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
@@ -72,6 +68,7 @@ void draw(){
   float maxU = Float.MIN_VALUE;
   float minPhi = Float.MAX_VALUE;
   float maxPhi = Float.MIN_VALUE;
+  float totalPhi = 0.f;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
       if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
@@ -82,6 +79,7 @@ void draw(){
       maxU = max(maxU, tmpU);
       minPhi = min(minPhi, simulation.getCell(i,j).getPhi());
       maxPhi = max(maxPhi, simulation.getCell(i,j).getPhi());
+      totalPhi += simulation.getCell(i,j).getPhi();
     }
   }
   
@@ -90,6 +88,7 @@ void draw(){
   text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
   text("Phi : ["+nf(minPhi,0,3)+", "+nf(maxPhi,0,3)+"]",10,75);
+  text("Total Phi : "+nf(totalPhi,0,3),10,95);
 }
 
 void keyPressed(){
