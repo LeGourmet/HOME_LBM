@@ -1,3 +1,4 @@
+public enum CELL_TYPE { SOLID, FLUID, EQUILIBRIUM };
 public enum COLOR_TYPE { PRESSURE, VELOCITY, TYPE };
 
 public class LBM {
@@ -11,7 +12,11 @@ public class LBM {
   private float ForceFieldX[][];
   private float ForceFieldY[][];
   
-  private Cell grid[][];
+  private CELL_TYPE gridType[][];
+  private CellFlow gridFlow[][];
+  private CellPhase gridPhase[][];
+  
+  private static final int PhaseScale = 2;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------
   public LBM(int p_Nx, int p_Ny) {
@@ -30,48 +35,64 @@ public class LBM {
       }
     }
     
-    this.grid = new Cell[this.Nx][this.Ny];
+    this.gridType = new CELL_TYPE[this.Nx][this.Ny];
+    this.gridFlow = new CellFlow[this.Nx][this.Ny];
+    this.gridPhase = new CellPhase[this.Nx*LBM.PhaseScale][this.Ny*LBM.PhaseScale];
   }  
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public int getNx() { return this.Nx; }
   public int getNy() { return this.Ny; }
   public int getT() { return this.t; }
-  
-  public float getForceX(int p_x, int p_y) { 
-    if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return this.GlobalForceX; 
-    return this.GlobalForceX+this.ForceFieldX[p_x][p_y]; 
+  public float getForceX(int p_x, int p_y) { return this.GlobalForceX+this.ForceFieldX[p_x][p_y]; }
+  public float getForceY(int p_x, int p_y) { return this.GlobalForceY+this.ForceFieldY[p_x][p_y]; }
+  public CELL_TYPE getType(int p_x, int p_y) { return this.gridType[p_x][p_y]; }
+  public float getPressure(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getPressure(); }
+  public float get_Pressure(int p_x, int p_y) { return this.gridFlow[p_x][p_y].get_Pressure(); }
+  public float getVelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityX(); }
+  public float get_VelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].get_VelocityX(); }
+  public float getVelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityY(); }
+  public float get_VelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].get_VelocityY(); }
+  public float getSxx(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSxx(); }
+  public float get_Sxx(int p_x, int p_y){ return this.gridFlow[p_x][p_y].get_Sxx(); }
+  public float getSyy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSyy(); }
+  public float get_Syy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].get_Syy(); }
+  public float getSxy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSxy(); }
+  public float get_Sxy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].get_Sxy(); }
+    
+  // TODO : should be trilinear interpolation or bilinear instead 
+  public float getMacroPhi(int p_x, int p_y){ 
+    float phi = 0.f;
+    for(int i=0; i<LBM.PhaseScale ;i++)
+      for(int j=0; j<LBM.PhaseScale ;j++)  
+        phi += this.gridPhase[p_x*LBM.PhaseScale+i][p_y*LBM.PhaseScale+j].getPhi();
+    return phi/sq(float(LBM.PhaseScale)); 
   }
   
-  public float getForceY(int p_x, int p_y) { 
-    if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return this.GlobalForceY; 
-    return this.GlobalForceY+this.ForceFieldY[p_x][p_y]; 
-  }
-  
-  public Cell getCell(int p_x, int p_y) { 
-    if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return null; 
-    return this.grid[p_x][p_y];
-  }
-  
+  public float getMicroPhi(int p_x, int p_y){ return gridPhase[p_x][p_y].getPhi(); }
+    
+  public float getHi(int p_x, int p_y, int p_i){ return gridPhase[p_x][p_y].getHi(p_i); }
+    
   public int getColor(int p_x, int p_y, COLOR_TYPE p_colorType) {
     if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return color(0);
     
-    if (grid[p_x][p_y].type == CELL_TYPE.SOLID) return color(0);
+    CELL_TYPE type = getType(p_x, p_y);
+    if (type == CELL_TYPE.SOLID) return color(0);
     
     int palette[];
     float val;
     
     if(p_colorType == COLOR_TYPE.PRESSURE){
       palette = new int[]{color(68,1,84), color(59,82,139), color(33,145,140), color(94,201,98), color(253,231,37)};
-      val = constrain(grid[p_x][p_y].p*0.5f, 0.f, 1.f);
+      val = constrain(getPressure(p_x,p_y)*0.5f, 0.f, 1.f);
     }else if(p_colorType == COLOR_TYPE.VELOCITY){
       palette = new int[]{color(70,70,219), color(0,255,91), color(0,128,0), color(255,255,0), color(255,96,0), color(107,0,0), color(223,77,77)};
-      val = constrain(sqrt(grid[p_x][p_y].ux*grid[p_x][p_y].ux + grid[p_x][p_y].uy*grid[p_x][p_y].uy)/cs, 0.f, 1.f);
+      val = constrain(sqrt(sq(getVelocityX(p_x,p_y)) + sq(getVelocityY(p_x,p_y)))/cs, 0.f, 1.f);
     }else{
       //palette = new int[]{color(40,40,180), color(150,150,200), color(221,221,221), color(200,150,150), color(180,40,40)};
       //val = (grid[p_x][p_y].phi>0.99f) ? 1.f : (grid[p_x][p_y].phi>0.01f) ? 0.f : 0.5f;
       palette = new int[]{color(40,40,180), color(180,40,40)};
-      val = constrain(grid[p_x][p_y].phi,0,1);
+      val = constrain(getMacroPhi(p_x,p_y),0,1);
   }
       
     float x = val*0.999f*(palette.length-1.f);
@@ -82,39 +103,59 @@ public class LBM {
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setGlobalForceX(float p_force) { this.GlobalForceX = p_force; }
   public void setGlobalForceY(float p_force) { this.GlobalForceY = p_force; }
+  public void setForceFieldX(int p_x, int p_y, float p_force){ this.ForceFieldX[p_x][p_y] = p_force; }
+  public void setForceFieldY(int p_x, int p_y, float p_force){ this.ForceFieldY[p_x][p_y] = p_force; }
+  public void setType(int p_x, int p_y, CELL_TYPE p_type) { this.gridType[p_x][p_y] = p_type; }
+  public void setPressure(int p_x, int p_y, float p_p) { this.gridFlow[p_x][p_y].setPressure(p_p); }
+  public void setVelocityX(int p_x, int p_y, float p_ux) { this.gridFlow[p_x][p_y].setVelocityX(p_ux); }
+  public void setVelocityY(int p_x, int p_y, float p_uy) { this.gridFlow[p_x][p_y].setVelocityY(p_uy); }
   
-  public void setForceFieldX(int p_x, int p_y, float p_force){
-    if(p_x>=0 || p_x<this.Nx || p_y>=0 || p_y<this.Ny) this.ForceFieldX[p_x][p_y] = p_force;
-  }
-  
-  public void setForceFieldY(int p_x, int p_y, float p_force){
-    if(p_x>=0 || p_x<this.Nx || p_y>=0 || p_y<this.Ny) this.ForceFieldY[p_x][p_y] = p_force;
-  }
-  
-  public void setCell(int p_x, int p_y, Cell p_cell) {
-    if(p_x>=0 || p_x<this.Nx || p_y>=0 || p_y<this.Ny) this.grid[p_x][p_y] = p_cell;
-  }
+  public void setCell(int p_x, int p_y, CELL_TYPE p_type, float p_p, float p_ux, float p_uy, float p_phi) {
+    this.gridType[p_x][p_y] = p_type;
+    this.gridFlow[p_x][p_y] = new CellFlow(p_p, p_ux, p_uy);
+    for(int i=0; i<LBM.PhaseScale ;i++)
+      for(int j=0; j<LBM.PhaseScale ;j++)  
+        this.gridPhase[p_x*LBM.PhaseScale+i][p_y*LBM.PhaseScale+j] = new CellPhase(p_phi,p_ux,p_uy);
+  } 
   
   // ----------------------------------------------------- FUNCTIONS -----------------------------------------------------
   void doTimeStep(){    
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].flowStreaming(i, j, this);
+        gridFlow[i][j].streaming(i, j, this);
     
     for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
-          grid[i][j].flowCollision(i, j, this);
+          gridFlow[i][j].collision(i, j, this);
     
-    for(int a=0; a<1 ;a++){
+    // first update with (gi(x,t)+gi(x,t+1))/2
+    for(int i=0; i<Nx ;i++)
+        for(int j=0; j<Ny ;j++)
+          for(int a=0; a<LBM.PhaseScale ;a++)
+            for(int b=0; b<LBM.PhaseScale ;b++)
+              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), get_VelocityX(i, j), get_VelocityY(i,j), this);
+      
       for(int i=0; i<Nx ;i++)
         for(int j=0; j<Ny ;j++)
-          grid[i][j].phaseCollision(i, j, this);
+          for(int a=0; a<LBM.PhaseScale ;a++)
+            for(int b=0; b<LBM.PhaseScale ;b++)
+              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), get_VelocityX(i, j), get_VelocityY(i,j), this);
+              
+      
+    
+    // second update with gi(x,t+1)
+    for(int i=0; i<Nx ;i++)
+        for(int j=0; j<Ny ;j++)
+          for(int a=0; a<LBM.PhaseScale ;a++)
+            for(int b=0; b<LBM.PhaseScale ;b++)
+              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), (get_VelocityX(i, j)+getVelocityX(i,j))*0.5f, (get_VelocityY(i, j)+getVelocityY(i,j))*0.5f, this);
+      
+      for(int i=0; i<Nx ;i++)
+        for(int j=0; j<Ny ;j++)
+          for(int a=0; a<LBM.PhaseScale ;a++)
+            for(int b=0; b<LBM.PhaseScale ;b++)
+              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), (get_VelocityX(i, j)+getVelocityX(i,j))*0.5f, (get_VelocityY(i, j)+getVelocityY(i,j))*0.5f, this);
         
-      for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++)
-          grid[i][j].phaseStreaming(i, j, this);
-    }
-    
     t++;
   }
 }

@@ -21,14 +21,14 @@ void setup(){
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f));
+        simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f);
       } else if (i==simulation.getNx()-1) {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 1.f));  
+        simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 1.f);  
       } 
-      //else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){ simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.5f)); } 
+      //else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){ simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.5f); } 
       else {
         float phi = float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f;
-        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, phi));
+        simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, phi);
       }
     }
     
@@ -71,15 +71,15 @@ void draw(){
   float totalPhi = 0.f;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
-      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
-      minP = min(minP, simulation.getCell(i,j).getPressure());
-      maxP = max(maxP, simulation.getCell(i,j).getPressure());
-      float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
+      if(simulation.getType(i,j)==CELL_TYPE.SOLID || simulation.getType(i,j)==CELL_TYPE.EQUILIBRIUM) continue;
+      minP = min(minP, simulation.getPressure(i,j));
+      maxP = max(maxP, simulation.getPressure(i,j));
+      float tmpU = sqrt(sq(simulation.getVelocityX(i,j))+sq(simulation.getVelocityY(i,j)));
       minU = min(minU, tmpU);
       maxU = max(maxU, tmpU);
-      minPhi = min(minPhi, simulation.getCell(i,j).getPhi());
-      maxPhi = max(maxPhi, simulation.getCell(i,j).getPhi());
-      totalPhi += simulation.getCell(i,j).getPhi();
+      minPhi = min(minPhi, simulation.getMacroPhi(i,j));
+      maxPhi = max(maxPhi, simulation.getMacroPhi(i,j));
+      totalPhi += simulation.getMacroPhi(i,j);
     }
   }
   
@@ -102,7 +102,7 @@ void mousePressed(){
   for(int i=(mouseX/SCREEN_ZOOM-radius); i<(mouseX/SCREEN_ZOOM+radius) ;i++)
     for(int j=(mouseY/SCREEN_ZOOM-radius); j<(mouseY/SCREEN_ZOOM+radius) ;j++) {
       if(i>=0 && i<simulation.getNx() && j>=0 && j<simulation.getNy() && inSphere(i,j,radius,mouseX/SCREEN_ZOOM,mouseY/SCREEN_ZOOM))
-        if(simulation.getCell(i,j).getType()==CELL_TYPE.FLUID) 
-          simulation.getCell(i,j).setPressure(2.f);
+        if(simulation.getType(i,j)==CELL_TYPE.FLUID) 
+          simulation.setPressure(i, j, 2.f);
   }
 }
