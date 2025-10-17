@@ -59,7 +59,8 @@ public class LBM {
   public float getSyy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSyy(); }
   public float getSxy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSxy(); }
     
-  // TODO : should be trilinear interpolation or bilinear instead 
+  // get Velocity => should trilinear for subgrid need
+  
   public float getMacroPhi(int p_x, int p_y){ 
     float phi = 0.f;
     for(int i=0; i<LBM.PhaseScale ;i++)
@@ -69,7 +70,9 @@ public class LBM {
   }
   
   public float getMicroPhi(int p_x, int p_y){ return gridPhase[p_x][p_y].getPhi(); }
-    
+  
+  
+  
   public float getHi(int p_x, int p_y, int p_i){ return gridPhase[p_x][p_y].getHi(p_i); }
     
   public int getColor(int p_x, int p_y, COLOR_TYPE p_colorType) {
@@ -140,6 +143,7 @@ public class LBM {
           for(int b=0; b<LBM.PhaseScale ;b++)
             gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getOldVelocityX(i,j), getOldVelocityY(i,j), this);
     
+    // should trilinear evaluate u !! 
     // second update with (gi(x,t)+gi(x,t+1))/2
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
@@ -147,6 +151,7 @@ public class LBM {
           for(int b=0; b<LBM.PhaseScale ;b++)
             gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (getOldVelocityX(i,j)+getVelocityX(i,j))*0.5f, (getOldVelocityY(i,j)+getVelocityY(i,j))*0.5f, this);
     
+    // should trilinear evaluate u !! 
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)

@@ -30,7 +30,7 @@ public class CellPhase {
     float mo = 1.f/( (1.f-phi)/mo_air + phi/mo_fluid );
     float tau = 0.5f + mo/cs2;
       
-    if(false){
+    if(true){
       // BGK => hi(x,t+1) = hi(x,t) -(fi-feq)/tau + Hi(x,t); 
       
       //float GphiX = (D2Q5_w[1]*p_simulation.getCell(mod(p_x+1,p_simulation.getNx()),p_y).phi - D2Q5_w[2]*p_simulation.getCell(mod(p_x-1,p_simulation.getNx()),p_y).phi)/cs2;
@@ -169,11 +169,11 @@ public class CellPhase {
           r2[a] += M2[a][b]*H[b];
       
       // hi - M1*(hi-hieq) (fully missible) or hi - M1*(hi-hieq) + M2*(H) (not missible)
-      hi[0] = hi[0] - r1[0] + r2[0];// H[0] or r2[0] => M2 is badly compute
-      hi[1] = hi[1] - r1[1] + r2[1];// H[1] or r2[1] => M2 is badly compute
-      hi[2] = hi[2] - r1[2] + r2[2];// H[2] or r2[2] => M2 is badly compute
-      hi[3] = hi[3] - r1[3] + r2[3];// H[3] or r2[3] => M2 is badly compute
-      hi[4] = hi[4] - r1[4] + r2[4];// H[4] or r2[4] => M2 is badly compute
+      hi[0] = hi[0] - r1[0] + H[0];// H[0] or r2[0] => M2 is badly compute, H semble etre dans l'espace projeté ??
+      hi[1] = hi[1] - r1[1] + H[1];// H[1] or r2[1] => M2 is badly compute, H semble etre dans l'espace projeté ??
+      hi[2] = hi[2] - r1[2] + H[2];// H[2] or r2[2] => M2 is badly compute, H semble etre dans l'espace projeté ??
+      hi[3] = hi[3] - r1[3] + H[3];// H[3] or r2[3] => M2 is badly compute, H semble etre dans l'espace projeté ??
+      hi[4] = hi[4] - r1[4] + H[4];// H[4] or r2[4] => M2 is badly compute, H semble etre dans l'espace projeté ??
     }
   }
   
