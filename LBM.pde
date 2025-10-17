@@ -14,9 +14,11 @@ public class LBM {
   
   private CELL_TYPE gridType[][];
   private CellFlow gridFlow[][];
+  private CellThermal gridThermal[][];
   private CellPhase gridPhase[][];
   
   private static final int PhaseScale = 2;
+  private static final int ThermalScale = 2;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------
   public LBM(int p_Nx, int p_Ny) {
@@ -37,6 +39,7 @@ public class LBM {
     
     this.gridType = new CELL_TYPE[this.Nx][this.Ny];
     this.gridFlow = new CellFlow[this.Nx][this.Ny];
+    this.gridThermal = new CellThermal[this.Nx*LBM.ThermalScale][this.Ny*LBM.ThermalScale];
     this.gridPhase = new CellPhase[this.Nx*LBM.PhaseScale][this.Ny*LBM.PhaseScale];
   }  
   
@@ -48,17 +51,13 @@ public class LBM {
   public float getForceY(int p_x, int p_y) { return this.GlobalForceY+this.ForceFieldY[p_x][p_y]; }
   public CELL_TYPE getType(int p_x, int p_y) { return this.gridType[p_x][p_y]; }
   public float getPressure(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getPressure(); }
-  public float get_Pressure(int p_x, int p_y) { return this.gridFlow[p_x][p_y].get_Pressure(); }
   public float getVelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityX(); }
-  public float get_VelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].get_VelocityX(); }
+  public float getOldVelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getOldVelocityX(); }
   public float getVelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityY(); }
-  public float get_VelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].get_VelocityY(); }
+  public float getOldVelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getOldVelocityY(); }
   public float getSxx(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSxx(); }
-  public float get_Sxx(int p_x, int p_y){ return this.gridFlow[p_x][p_y].get_Sxx(); }
   public float getSyy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSyy(); }
-  public float get_Syy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].get_Syy(); }
   public float getSxy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSxy(); }
-  public float get_Sxy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].get_Sxy(); }
     
   // TODO : should be trilinear interpolation or bilinear instead 
   public float getMacroPhi(int p_x, int p_y){ 
@@ -119,43 +118,41 @@ public class LBM {
   } 
   
   // ----------------------------------------------------- FUNCTIONS -----------------------------------------------------
-  void doTimeStep(){    
+  void doTimeStep(){
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         gridFlow[i][j].streaming(i, j, this);
     
     for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++)
-          gridFlow[i][j].collision(i, j, this);
+      for(int j=0; j<Ny ;j++)
+        gridFlow[i][j].collision(i, j, this);
     
-    // first update with (gi(x,t)+gi(x,t+1))/2
+    // first update with gi(x,t)
     for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++)
-          for(int a=0; a<LBM.PhaseScale ;a++)
-            for(int b=0; b<LBM.PhaseScale ;b++)
-              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), get_VelocityX(i, j), get_VelocityY(i,j), this);
-      
-      for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++)
-          for(int a=0; a<LBM.PhaseScale ;a++)
-            for(int b=0; b<LBM.PhaseScale ;b++)
-              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), get_VelocityX(i, j), get_VelocityY(i,j), this);
-              
-      
+      for(int j=0; j<Ny ;j++)
+        for(int a=0; a<LBM.PhaseScale ;a++)
+          for(int b=0; b<LBM.PhaseScale ;b++)
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getOldVelocityX(i,j), getOldVelocityY(i,j), this);
     
-    // second update with gi(x,t+1)
     for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++)
-          for(int a=0; a<LBM.PhaseScale ;a++)
-            for(int b=0; b<LBM.PhaseScale ;b++)
-              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), (get_VelocityX(i, j)+getVelocityX(i,j))*0.5f, (get_VelocityY(i, j)+getVelocityY(i,j))*0.5f, this);
-      
-      for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++)
-          for(int a=0; a<LBM.PhaseScale ;a++)
-            for(int b=0; b<LBM.PhaseScale ;b++)
-              gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale, LBM.PhaseScale, getType(i,j), (get_VelocityX(i, j)+getVelocityX(i,j))*0.5f, (get_VelocityY(i, j)+getVelocityY(i,j))*0.5f, this);
-        
+      for(int j=0; j<Ny ;j++)
+        for(int a=0; a<LBM.PhaseScale ;a++)
+          for(int b=0; b<LBM.PhaseScale ;b++)
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getOldVelocityX(i,j), getOldVelocityY(i,j), this);
+    
+    // second update with (gi(x,t)+gi(x,t+1))/2
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        for(int a=0; a<LBM.PhaseScale ;a++)
+          for(int b=0; b<LBM.PhaseScale ;b++)
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (getOldVelocityX(i,j)+getVelocityX(i,j))*0.5f, (getOldVelocityY(i,j)+getVelocityY(i,j))*0.5f, this);
+    
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        for(int a=0; a<LBM.PhaseScale ;a++)
+          for(int b=0; b<LBM.PhaseScale ;b++)
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (getOldVelocityX(i,j)+getVelocityX(i,j))*0.5f, (getOldVelocityY(i,j)+getVelocityY(i,j))*0.5f, this);
+    
     t++;
   }
 }

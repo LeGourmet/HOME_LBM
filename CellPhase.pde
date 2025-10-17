@@ -19,8 +19,8 @@ public class CellPhase {
   public void setPhi(float p_phi) { this.phi = constrain(p_phi,0.f,1.f); }
   
   // -------------------------------------------------- FUNCTIONS DDFs ---------------------------------------------------  
-  private float computeHiEq(int p_i, float p_phi, float p_p_ux, float p_p_uy) {
-    return D2Q5_w[p_i] * p_phi * (1.f + (D2Q5_cx[p_i]*p_p_ux + D2Q5_cy[p_i]*p_p_uy)/cs2);
+  private float computeHiEq(int p_i, float p_phi, float p_ux, float p_uy) {
+    return D2Q5_w[p_i] * p_phi * (1.f + (D2Q5_cx[p_i]*p_ux + D2Q5_cy[p_i]*p_uy)/cs2);
   }
   
   // -------------------------------------------------- FUNCTIONS PHASE -------------------------------------------------- 
@@ -33,6 +33,9 @@ public class CellPhase {
     if(false){
       // BGK => hi(x,t+1) = hi(x,t) -(fi-feq)/tau + Hi(x,t); 
       
+      //float GphiX = (D2Q5_w[1]*p_simulation.getCell(mod(p_x+1,p_simulation.getNx()),p_y).phi - D2Q5_w[2]*p_simulation.getCell(mod(p_x-1,p_simulation.getNx()),p_y).phi)/cs2;
+      //float GphiY = (D2Q5_w[3]*p_simulation.getCell(p_x,mod(p_y+1,p_simulation.getNy())).phi - D2Q5_w[4]*p_simulation.getCell(p_x,mod(p_y-1,p_simulation.getNy())).phi)/cs2;
+           
       float GphiX = (D2Q5_w[1]*p_simulation.getMicroPhi(mod(p_xMicro+1,p_simulation.getNx()*p_scale),p_yMicro) - D2Q5_w[2]*p_simulation.getMicroPhi(mod(p_xMicro-1,p_simulation.getNx()*p_scale),p_yMicro))/cs2;
       float GphiY = (D2Q5_w[3]*p_simulation.getMicroPhi(p_xMicro,mod(p_yMicro+1,p_simulation.getNy()*p_scale)) - D2Q5_w[4]*p_simulation.getMicroPhi(p_xMicro,mod(p_yMicro-1,p_simulation.getNy()*p_scale)))/cs2;
       float nGphi = sqrt(sq(GphiX)+sq(GphiY));
@@ -40,10 +43,10 @@ public class CellPhase {
       float nGphiY = (nGphi==0.f) ? 0.f : GphiY/nGphi;
       
       hi[0] += (computeHiEq(0,phi,p_ux,p_uy)-hi[0])/tau;
-      hi[1] += (computeHiEq(1,phi,p_ux,p_uy)-hi[1])/tau + D2Q5_w[1] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiX;
-      hi[2] += (computeHiEq(2,phi,p_ux,p_uy)-hi[2])/tau - D2Q5_w[2] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiX;
-      hi[3] += (computeHiEq(3,phi,p_ux,p_uy)-hi[3])/tau + D2Q5_w[3] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiY;
-      hi[4] += (computeHiEq(4,phi,p_ux,p_uy)-hi[4])/tau - D2Q5_w[4] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiY;
+      hi[1] += (computeHiEq(1,phi,p_ux,p_uy)-hi[1])/tau + D2Q5_w[1] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiX;
+      hi[2] += (computeHiEq(2,phi,p_ux,p_uy)-hi[2])/tau - D2Q5_w[2] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiX;
+      hi[3] += (computeHiEq(3,phi,p_ux,p_uy)-hi[3])/tau + D2Q5_w[3] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiY;
+      hi[4] += (computeHiEq(4,phi,p_ux,p_uy)-hi[4])/tau - D2Q5_w[4] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiY;
     } else {
       // MRT => hi(x,t+1) = hi(x,t) - M^(-1)*S*M*(hi(x,t)-hieq(x,t)) + M^(-1)*(1-0.5*S)*M*Hi(x,t);
       
@@ -137,10 +140,10 @@ public class CellPhase {
       
       float[] H = {
          0.f,
-         D2Q5_w[1] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiX,
-        -D2Q5_w[2] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiX,
-         D2Q5_w[3] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiY,
-        -D2Q5_w[4] * 4.f/interfacial_thickness * phi*(1.f-phi) * nGphiY 
+         D2Q5_w[1] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiX,
+        -D2Q5_w[2] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiX,
+         D2Q5_w[3] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiY,
+        -D2Q5_w[4] * 4.f/interfacial_thickness * phi*(1.f-phi) * missibility * nGphiY 
       };
       
     /*float[][] _Sh = {
@@ -166,11 +169,11 @@ public class CellPhase {
           r2[a] += M2[a][b]*H[b];
       
       // hi - M1*(hi-hieq) (fully missible) or hi - M1*(hi-hieq) + M2*(H) (not missible)
-      hi[0] = hi[0] - r1[0] + H[0];// + r2[0]; 
-      hi[1] = hi[1] - r1[1] + H[1];// + r2[1];
-      hi[2] = hi[2] - r1[2] + H[2];// + r2[2];
-      hi[3] = hi[3] - r1[3] + H[3];// + r2[3];
-      hi[4] = hi[4] - r1[4] + H[4];// + r2[4];
+      hi[0] = hi[0] - r1[0] + r2[0];// H[0] or r2[0] => M2 is badly compute
+      hi[1] = hi[1] - r1[1] + r2[1];// H[1] or r2[1] => M2 is badly compute
+      hi[2] = hi[2] - r1[2] + r2[2];// H[2] or r2[2] => M2 is badly compute
+      hi[3] = hi[3] - r1[3] + r2[3];// H[3] or r2[3] => M2 is badly compute
+      hi[4] = hi[4] - r1[4] + r2[4];// H[4] or r2[4] => M2 is badly compute
     }
   }
   
@@ -181,10 +184,9 @@ public class CellPhase {
     
     for(int i=0; i<5 ;i++){
       int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
-      
-      phi += (p_simulation.getType(mod(p_xMacro+D2Q5_cx[j],p_simulation.getNx()),mod(p_yMacro+D2Q5_cy[j],p_simulation.getNy()))==CELL_TYPE.SOLID) ? 
-                hi[j] : 
-                p_simulation.getHi(mod(p_xMicro+D2Q5_cx[j],p_simulation.getNx()*p_scale),mod(p_xMicro+D2Q5_cy[j],p_simulation.getNy()*p_scale), i); 
+      // if p_simulation.getType(mod(p_xMacro+D2Q5_cx[j],p_simulation.getNx()),mod(p_yMacro+D2Q5_cy[j],p_simulation.getNy()))==CELL_TYPE.SOLID // => should do it in micro and find is macro equivalent
+      phi += p_simulation.getHi(mod(p_xMicro+D2Q5_cx[j],p_simulation.getNx()*p_scale),mod(p_yMicro+D2Q5_cy[j],p_simulation.getNy()*p_scale), i);
+      // hi[j]
     }
     
     phi = constrain(phi,0.f,1.f);  
