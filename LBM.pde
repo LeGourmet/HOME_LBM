@@ -14,11 +14,9 @@ public class LBM {
   
   private CELL_TYPE gridType[][];
   private CellFlow gridFlow[][];
-  private CellThermal gridThermal[][];
   private CellPhase gridPhase[][];
   
   private static final int PhaseScale = 2;
-  private static final int ThermalScale = 2;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------
   public LBM(int p_Nx, int p_Ny) {
@@ -39,7 +37,6 @@ public class LBM {
     
     this.gridType = new CELL_TYPE[this.Nx][this.Ny];
     this.gridFlow = new CellFlow[this.Nx][this.Ny];
-    this.gridThermal = new CellThermal[this.Nx*LBM.ThermalScale][this.Ny*LBM.ThermalScale];
     this.gridPhase = new CellPhase[this.Nx*LBM.PhaseScale][this.Ny*LBM.PhaseScale];
   }  
   
@@ -61,7 +58,7 @@ public class LBM {
     
   // get Velocity => should trilinear for subgrid need
   
-  public float getMacroPhi(int p_x, int p_y){ 
+  public float getPhi(int p_x, int p_y){ 
     float phi = 0.f;
     for(int i=0; i<LBM.PhaseScale ;i++)
       for(int j=0; j<LBM.PhaseScale ;j++)  
@@ -70,9 +67,6 @@ public class LBM {
   }
   
   public float getMicroPhi(int p_x, int p_y){ return gridPhase[p_x][p_y].getPhi(); }
-  
-  
-  
   public float getHi(int p_x, int p_y, int p_i){ return gridPhase[p_x][p_y].getHi(p_i); }
     
   public int getColor(int p_x, int p_y, COLOR_TYPE p_colorType) {
@@ -94,7 +88,7 @@ public class LBM {
       //palette = new int[]{color(40,40,180), color(150,150,200), color(221,221,221), color(200,150,150), color(180,40,40)};
       //val = (grid[p_x][p_y].phi>0.99f) ? 1.f : (grid[p_x][p_y].phi>0.01f) ? 0.f : 0.5f;
       palette = new int[]{color(40,40,180), color(180,40,40)};
-      val = constrain(getMacroPhi(p_x,p_y),0,1);
+      val = constrain(getPhi(p_x,p_y),0,1);
   }
       
     float x = val*0.999f*(palette.length-1.f);
@@ -135,13 +129,13 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getOldVelocityX(i,j), getOldVelocityY(i,j), this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getOldVelocityX(i,j), getOldVelocityY(i,j), this);
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getOldVelocityX(i,j), getOldVelocityY(i,j), this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), this);
     
     // should trilinear evaluate u !! 
     // second update with (gi(x,t)+gi(x,t+1))/2
@@ -149,14 +143,14 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (getOldVelocityX(i,j)+getVelocityX(i,j))*0.5f, (getOldVelocityY(i,j)+getVelocityY(i,j))*0.5f, this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (getOldVelocityX(i,j)+getVelocityX(i,j))*0.5f, (getOldVelocityY(i,j)+getVelocityY(i,j))*0.5f, this);
     
     // should trilinear evaluate u !! 
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i, j, i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (getOldVelocityX(i,j)+getVelocityX(i,j))*0.5f, (getOldVelocityY(i,j)+getVelocityY(i,j))*0.5f, this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), this);
     
     t++;
   }

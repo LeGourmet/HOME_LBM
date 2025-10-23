@@ -33,17 +33,13 @@ public class CellFlow {
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public float getPressure() { return this.p; }
-  public float getOldPressure() { return this._p; }
   public float getVelocityX() { return this.ux; }
   public float getOldVelocityX() { return this._ux; }
   public float getVelocityY() { return this.uy; }
   public float getOldVelocityY() { return this._uy; }
   public float getSxx() { return this.Sxx; }
-  public float getOldSxx() { return this._Sxx; }
   public float getSyy() { return this.Syy; }
-  public float getOldSyy() { return this._Syy; }
   public float getSxy() { return this.Sxy; }
-  public float getOldSxy() { return this._Sxy; }
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setPressure(float p_pressure) { this.p = max(0.f,p_pressure); }
@@ -115,47 +111,44 @@ public class CellFlow {
     CELL_TYPE type = p_simulation.getType(p_x, p_y);
     if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
     
-    float phi = simulation.getMacroPhi(p_x, p_y);
+    float phi = simulation.getPhi(p_x, p_y);
         
-    float rho = max(1e-5f,(1-phi)*rho_air + phi*rho_fluid);
-    float nu = 1.f/( (1.f-phi)/nu_air + phi/nu_fluid );
+    float rho = (1-phi)*rho_air + phi*rho_fluid;         // max 1e-5f
+    float nu = 1.f/( (1.f-phi)/nu_air + phi/nu_fluid );  // max 1e-5f
     float tau = 0.5f + nu/cs2;
-    
-    // if |grad(phi)| >  0.6 * 4*phi*(1-phi)/interface_thickness
-    // grad(phi) = grad(phi)/|grad(phi)| * 0.6
-    
+        
     // unroll => wi*ci_alpha*phi(x+cix,y+ciy)/cs2
-    float GphiX = (D2Q5_w[1]*p_simulation.getMacroPhi(mod(p_x+1,p_simulation.getNx()),p_y) - D2Q5_w[2]*p_simulation.getMacroPhi(mod(p_x-1,p_simulation.getNx()),p_y))/cs2;
-    float GphiY = (D2Q5_w[3]*p_simulation.getMacroPhi(p_x,mod(p_y+1,p_simulation.getNy())) - D2Q5_w[4]*p_simulation.getMacroPhi(p_x,mod(p_y-1,p_simulation.getNy())))/cs2;
-    float nGphi = sqrt(sq(GphiX)+sq(GphiY));
+    float GphiX = (D2Q5_w[1]*p_simulation.getPhi(mod(p_x+1,p_simulation.getNx()),p_y) - D2Q5_w[2]*p_simulation.getPhi(mod(p_x-1,p_simulation.getNx()),p_y))/cs2;
+    float GphiY = (D2Q5_w[3]*p_simulation.getPhi(p_x,mod(p_y+1,p_simulation.getNy())) - D2Q5_w[4]*p_simulation.getPhi(p_x,mod(p_y-1,p_simulation.getNy())))/cs2;
+    /*float nGphi = sqrt(sq(GphiX)+sq(GphiY));
     if(nGphi > (0.6f * 4.f*phi*(1.f-phi)/interfacial_thickness)){
       GphiX = GphiX/nGphi * 0.6f;
       GphiY = GphiY/nGphi * 0.6f;
-    } 
+    }*/
     float GrhoX = (rho_fluid - rho_air) * GphiX;
     float GrhoY = (rho_fluid - rho_air) * GphiY;
     
     // unroll => 2*wi*(phi(x+cix,y+ciy)/cs2
-    float GphiSQ= 2.f/cs * ( D2Q5_w[1]*(p_simulation.getMacroPhi(mod(p_x+1,p_simulation.getNx()),p_y)-phi) + 
-                             D2Q5_w[2]*(p_simulation.getMacroPhi(mod(p_x-1,p_simulation.getNx()),p_y)-phi) + 
-                             D2Q5_w[3]*(p_simulation.getMacroPhi(p_x,mod(p_y+1,p_simulation.getNy()))-phi) + 
-                             D2Q5_w[4]*(p_simulation.getMacroPhi(p_x,mod(p_y-1,p_simulation.getNy()))-phi) );
+    float GphiSQ= 2.f/cs * ( D2Q5_w[1]*(p_simulation.getPhi(mod(p_x+1,p_simulation.getNx()),p_y)-phi) + 
+                             D2Q5_w[2]*(p_simulation.getPhi(mod(p_x-1,p_simulation.getNx()),p_y)-phi) + 
+                             D2Q5_w[3]*(p_simulation.getPhi(p_x,mod(p_y+1,p_simulation.getNy()))-phi) + 
+                             D2Q5_w[4]*(p_simulation.getPhi(p_x,mod(p_y-1,p_simulation.getNy()))-phi) );
    
     // body forces
     float fbx = p_simulation.getForceX(p_x, p_y);
     float fby = p_simulation.getForceY(p_x, p_y);
     
     // pressure force : -P * cs2 * gradient(rho) : -P * gradient(rho)
-    float fpx = 0.001f* -p * cs2 * GrhoX;
-    float fpy = 0.001f* -p * cs2 * GrhoY;
+    float fpx = 0.1f* -p * cs2 * GrhoX;
+    float fpy = 0.1f* -p * cs2 * GrhoY;
     
     // viscosity force : nu * [gradient(U) + transpose(grandient(u))] * gradient(rho)
     float fvx = ( (ux*ux-Sxx) * GrhoX + (ux*uy-Sxy) * GrhoY);
     float fvy = ( (uy*ux-Sxy) * GrhoX + (uy*uy-Syy) * GrhoY);
     
     // surface tension force : abs(ca_fluid - ca_air) < cs/100.f
-    float fsx = 0.001f * (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);
-    float fsy = 0.001f * (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);   
+    float fsx = 0.1f * (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);
+    float fsy = 0.1f * (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);   
  
     // external forces : Newton second law of motion
     float fx = fbx + (fpx+fvx+fsx)/rho; 

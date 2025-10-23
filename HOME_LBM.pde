@@ -17,19 +17,17 @@ void setup(){
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
   simulation.setGlobalForceX(-0.000016f);
+  //simulation.setGlobalForceX(0.0016f);
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
-      if(i==0){
-        simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f);
-      } else if (i==simulation.getNx()-1) {
-        simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 1.f);  
-      } 
-      //else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)){ simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.5f); } 
-      else {
-        float phi = float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f;
-        simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, phi);
-      }
+           if (i==0)                                         { simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f); } 
+      else if (i==simulation.getNx()-1)                      { simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f); }
+      else                                                   { simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f); }
+      //     if (i==0)                                         { simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f); } 
+      //else if (i==simulation.getNx()-1)                      { simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 0.f); } 
+      //else if(inSphere(i,j,GRID_SIZE_X/30,50,GRID_SIZE_Y/2)) { simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f); } 
+      //else                                                   { simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, 0.f); }
     }
     
   frameRate(120);
@@ -77,9 +75,9 @@ void draw(){
       float tmpU = sqrt(sq(simulation.getVelocityX(i,j))+sq(simulation.getVelocityY(i,j)));
       minU = min(minU, tmpU);
       maxU = max(maxU, tmpU);
-      minPhi = min(minPhi, simulation.getMacroPhi(i,j));
-      maxPhi = max(maxPhi, simulation.getMacroPhi(i,j));
-      totalPhi += simulation.getMacroPhi(i,j);
+      minPhi = min(minPhi, simulation.getPhi(i,j));
+      maxPhi = max(maxPhi, simulation.getPhi(i,j));
+      totalPhi += simulation.getPhi(i,j);
     }
   }
   
@@ -88,7 +86,7 @@ void draw(){
   text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
   text("Phi : ["+nf(minPhi,0,3)+", "+nf(maxPhi,0,3)+"]",10,75);
-  text("Total Phi : "+nf(totalPhi,0,3),10,95);
+  text("Total Phi : "+nf(totalPhi,0,3),10,90);
 }
 
 void keyPressed(){

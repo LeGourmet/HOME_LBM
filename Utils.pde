@@ -6,17 +6,17 @@
 // phi(x) = 1/2*(1-tanh(2x/interface_size) ou x est egale a sa distance signé de l'interfaces des phases 
 
 final float rho_fluid = 3.f;                // 0.1f => idk !
-final float nu_fluid = 0.001f;              // Desbrun : [0.01f, 0.0006f]
+final float nu_fluid = 0.015f;              // Desbrun : [0.01f, 0.0006f]
 final float mo_fluid = 0.2f;                // Desbrun : 0.2f
 final float ca_fluid = 0.26f;                // 0.00005f => idk !
 
 final float rho_air = 1.f;                  // 0.00001f => idk !
-final float nu_air = 0.001f;                // Desbrun : [0.01f, 0.0006f]
+final float nu_air = 0.015f;                // Desbrun : [0.01f, 0.0006f]
 final float mo_air = 0.2f;                  // Desbrun : 0.2f
 final float ca_air = 0.26f;                 // 0.0005f => idk !
 
 final float missibility = 1.f;             // 0=>fully missible ; ]0,1[=>partialy missible ; 1=>immissible
-final float interfacial_thickness = 25.f;    // Desbrun : 5.f
+final float interfacial_thickness = 5.f;    // Desbrun : 5.f
 
 // ----------------------------------------------------- LBM CONST -----------------------------------------------------
 final float cs = 0.57735027f;
