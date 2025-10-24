@@ -139,16 +139,16 @@ public class CellFlow {
     float fby = p_simulation.getForceY(p_x, p_y);
     
     // pressure force : -P * cs2 * gradient(rho) : -P * gradient(rho)
-    float fpx = 0.1f* -p * cs2 * GrhoX;
-    float fpy = 0.1f* -p * cs2 * GrhoY;
+    float fpx = 0.0001f* -p * cs2 * GrhoX;
+    float fpy = 0.0001f* -p * cs2 * GrhoY;
     
     // viscosity force : nu * [gradient(U) + transpose(grandient(u))] * gradient(rho)
-    float fvx = ( (ux*ux-Sxx) * GrhoX + (ux*uy-Sxy) * GrhoY);
-    float fvy = ( (uy*ux-Sxy) * GrhoX + (uy*uy-Syy) * GrhoY);
+    float fvx = 0.0001f* ( (ux*ux-Sxx) * GrhoX + (ux*uy-Sxy) * GrhoY);
+    float fvy = 0.0001f* ( (uy*ux-Sxy) * GrhoX + (uy*uy-Syy) * GrhoY);
     
     // surface tension force : abs(ca_fluid - ca_air) < cs/100.f
-    float fsx = 0.1f * (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);
-    float fsy = 0.1f * (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);   
+    float fsx = 0.0001f * (ca_fluid + ca_air) * GphiX * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);
+    float fsy = 0.0001f * (ca_fluid + ca_air) * GphiY * (24.f/interfacial_thickness * sq(missibility) * phi * (1.f-phi) * (1.f-2.f*phi) - 3.f*interfacial_thickness/2.f * GphiSQ);   
  
     // external forces : Newton second law of motion
     float fx = fbx + (fpx+fvx+fsx)/rho; 
