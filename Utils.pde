@@ -1,22 +1,21 @@
 // --------------------------------------------------- FLUIDS CONST ----------------------------------------------------
-// should update solid for moving solid boundary treatment
-// LES is not smagorinsky lilly but WALE (nu = nu + nu')
-// mobility : controling degree of interface splitting; smaller values imply stronger spliting as less diffusion is intoducted
-// surface tension water = 10-6;
-// phi(x) = 1/2*(1-tanh(2x/interface_size) ou x est egale a sa distance signé de l'interfaces des phases 
+final float rho_1 = 1.f;
+final float nu_1 = 0.004f;
+final float mo_1 = 0.2f;
+final float ca_1 = 0.26f;
 
-final float rho_fluid = 1.f;                // water (more density = 1000 kg/m^3) => 1f
-final float nu_fluid = 0.5f;                // Desbrun : [0.01f, 0.0006f] => 0.0015f
-final float mo_fluid = 0.8f;                // Desbrun : [0.1f,0.2f] => 0.2f
-final float ca_fluid = 0.26f;               // surface tension soulde be 10^-6surface tension soulde be 10^-6
+final float rho_2 = 2.f;
+final float nu_2 = 0.004f;
+final float mo_2 = 0.2f;
+final float ca_2 = 0.26f;
 
-final float rho_air = 3.f;                  // air (less density = 1.2 kg/m^3) => 0.00125f
-final float nu_air = 0.5f;                  // Desbrun : [0.01f, 0.0006f] => 0.0015f
-final float mo_air = 0.8f;                  // Desbrun : [0.1f,0.2f] => 0.2f
-final float ca_air = 0.26f;                 // surface tension soulde be 10^-6
+final float rho_3 = 3.f;
+final float nu_3 = 0.004f;
+final float mo_3 = 0.2f;
+final float ca_3 = 0.26f;
 
-final float missibility = 1.f;              // 0=>fully missible ; ]0,1[=>partialy missible ; 1=>immissible
-final float interfacial_thickness = 5.f;    // Desbrun : 5.f
+final float missibility = 0.5f;               // 0=>fully missible ; ]0,1[=>partialy missible ; 1=>immissible
+final float interfacial_thickness = 5.f;
 
 // ----------------------------------------------------- LBM CONST -----------------------------------------------------
 final float cs = 0.57735027f;
@@ -28,19 +27,10 @@ final float[] D2Q9_w = { 4.f/9.f, 1.f/9.f, 1.f/9.f, 1.f/9.f, 1.f/9.f, 1.f/36.f, 
 final int[] D2Q9_cx = { 0, 1,-1, 0, 0, 1,-1, 1,-1 }; 
 final int[] D2Q9_cy = { 0, 0, 0, 1,-1, 1,-1,-1, 1 };
 
-final float[] D2Q5_w = { 1.f/3.f, 1.f/6.f, 1.f/6.f, 1.f/6.f, 1.f/6.f };
-final int[] D2Q5_cx = { 0, 1,-1, 0, 0}; 
-final int[] D2Q5_cy = { 0, 0, 0, 1,-1};
-
 // ------------------------------------------------------- UTILS -------------------------------------------------------
 int mod(int x, int n) { return (x+n)%n; }
 float cb(float x) { return x*x*x; }
 
 boolean inSphere(int x, int y, int r, int cx, int cy){
   return ((cx-x)*(cx-x)+(cy-y)*(cy-y)) < (r*r);
-}
-
-boolean inTorus(int x, int y, int r1, int r2, int cx, int cy){
-  float mag = (cx-x)*(cx-x)+(cy-y)*(cy-y);
-  return mag>(r1*r1) && mag<(r2*r2);
 }
