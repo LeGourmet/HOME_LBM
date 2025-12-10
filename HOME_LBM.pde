@@ -53,8 +53,8 @@ void draw(){
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
       if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
-      minP = min(minP, simulation.getCell(i,j).getPressure());
-      maxP = max(maxP, simulation.getCell(i,j).getPressure());
+      minP = min(minP, simulation.getCell(i,j).getDensity());
+      maxP = max(maxP, simulation.getCell(i,j).getDensity());
       float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
       minU = min(minU, tmpU);
       maxU = max(maxU, tmpU);
@@ -79,6 +79,6 @@ void mousePressed(){
     for(int j=(mouseY/SCREEN_ZOOM-radius); j<(mouseY/SCREEN_ZOOM+radius) ;j++) {
       if(i>=0 && i<simulation.getNx() && j>=0 && j<simulation.getNy() && inSphere(i,j,radius,mouseX/SCREEN_ZOOM,mouseY/SCREEN_ZOOM))
         if(simulation.getCell(i,j).getType()==CELL_TYPE.FLUID) 
-          simulation.getCell(i,j).setPressure(2.f);
+          simulation.getCell(i,j).setDensity(2.f);
   }
 }

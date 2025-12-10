@@ -32,7 +32,7 @@ public class Cell {
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public CELL_TYPE getType() { return this.type; }
-  public float getPressure() { return this.p; }
+  public float getDensity() { return this.p; }
   public float getVelocityX() { return this.ux; }
   public float getVelocityY() { return this.uy; }
   public float getSxx() { return this.Sxx; }
@@ -41,22 +41,21 @@ public class Cell {
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setType(CELL_TYPE p_type) { this.type = p_type; }
-  public void setPressure(float p_pressure) { this.p = max(0.f,p_pressure); }
+  public void setDensity(float p_density) { this.p = max(0.f,p_density); }
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   
   // -------------------------------------------------- FUNCTIONS DDFs ---------------------------------------------------  
   private float computeFiEq(int p_i, float p_p, float p_ux, float p_uy) {
-    return D2Q9_w[p_i] * (p_p + (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 + 0.5f*sq(D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2 - 1.f);
+    return p_p * D2Q9_w[p_i] * (1.f + (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 + 0.5f*sq(D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2) - D2Q9_w[p_i];
   }
   
   private float computeFi(int p_i, float p_p, float p_ux, float p_uy, float p_Sxx, float p_Syy, float p_Sxy) {
-    return D2Q9_w[p_i] * (p_p +
-                          (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
-                          0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-cs2) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-cs2))/cs4 +
-                          0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*cs2) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
-                                 (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6 
-                          - 1.f);
+    return p_p * D2Q9_w[p_i] * (1.f +
+                                (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
+                                0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-cs2) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-cs2))/cs4 +
+                                0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*cs2) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
+                                       (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6) - D2Q9_w[p_i];
   }
   
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
@@ -78,7 +77,7 @@ public class Cell {
       int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
 
       CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-      float pN = p_simulation.getCell(idNx,idNy).getPressure();
+      float pN = p_simulation.getCell(idNx,idNy).getDensity();
       float uxN = p_simulation.getCell(idNx,idNy).getVelocityX();
       float uyN = p_simulation.getCell(idNx,idNy).getVelocityY();
       float SxxN = p_simulation.getCell(idNx,idNy).getSxx();
@@ -101,13 +100,17 @@ public class Cell {
       _Syy += fi * (D2Q9_cy[i]*D2Q9_cy[i]-cs2);
       _Sxy += fi * (D2Q9_cx[i]*D2Q9_cy[i]);
     }
+    _ux /= _p;
+    _uy /= _p;
+    _Sxx /= _p;
+    _Syy /= _p;
+    _Sxy /= _p;
   }
   
   public void flowCollision(int p_x, int p_y, LBM p_simulation) { 
     CELL_TYPE type = p_simulation.getCell(p_x, p_y).getType();
     if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
     
-    float rho = rho_fluid;
     float nu = nu_fluid ;
     float tau = 0.5f + nu/cs2;
     
