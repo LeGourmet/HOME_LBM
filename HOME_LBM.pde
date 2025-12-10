@@ -1,6 +1,6 @@
 LBM simulation;
 
-int GRID_SIZE_X = 400;
+int GRID_SIZE_X = 300;
 int GRID_SIZE_Y = 100;
 int SCREEN_ZOOM = 3;
 
