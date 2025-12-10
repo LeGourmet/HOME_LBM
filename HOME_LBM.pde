@@ -7,7 +7,7 @@ int SCREEN_ZOOM = 3;
 boolean paused = true;
 COLOR_TYPE colorType = COLOR_TYPE.VELOCITY;
 
-//int nextFrame = 0;
+int nextFrame = 0;
 
 void settings(){
     size(GRID_SIZE_X*SCREEN_ZOOM,GRID_SIZE_Y*SCREEN_ZOOM,P2D);
@@ -19,7 +19,7 @@ void setup(){
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.25f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.2f, 0.f));
       } else if (i==simulation.getNx()-1) {
         simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f));  
       } else if(inSphere(i,j,GRID_SIZE_Y/10,50,GRID_SIZE_Y/2)) { 
