@@ -16,16 +16,18 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  //simulation.setGlobalForceY(-0.000016f);
+  simulation.setGlobalForceY(-0.16f);
   
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
-      if (j==0)                                                          simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f, 1.f); // simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);  
-      else if (j==simulation.getNy()-1)                                  simulation.setCell(i, j, CELL_TYPE.EQUILIBRIUM, 1.f, 0.25f, 0.f, 1.f); // simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
+      if (j==0)                                                          simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f); 
+      else if (j==simulation.getNy()-1)                                  simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
       else if (inSphere(i,j,GRID_SIZE_X/15,GRID_SIZE_X/2,GRID_SIZE_Y/2)) simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
       else                                                               simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, (j>260 && j<290 && i>50 && i<GRID_SIZE_X-50) ? 1.f : 0.f);
     }
   }
+  
+  simulation.initialize();
   
   frameRate(120);
 }

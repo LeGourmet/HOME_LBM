@@ -45,6 +45,13 @@ public class LBM {
     if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return color(0);
     
     if (grid[p_x][p_y].type == CELL_TYPE.SOLID) return color(0);
+    if (p_colorType == COLOR_TYPE.TYPE) {
+      if (grid[p_x][p_y].type == CELL_TYPE.EQUILIBRIUM) return color(0,0,255);
+      if (grid[p_x][p_y].type == CELL_TYPE.FLUID) return color(255,0,0);
+      if (grid[p_x][p_y].type == CELL_TYPE.INTERFACE) return color(255,0,255);
+      if (grid[p_x][p_y].type == CELL_TYPE.GAS) return color(0,0,255);
+      return color(127);
+    }
     
     int palette[];
     float val;
@@ -59,8 +66,8 @@ public class LBM {
       palette = new int[]{color(40,40,180), color(180,40,40)};
       val = constrain(grid[p_x][p_y].phi,0,1);
     } else {
-      palette = new int[]{color(40,40,180), color(180,40,40)};
-      val = constrain(grid[p_x][p_y].phi,0,1);
+      palette = new int[]{color(127), color(127)};
+      val = 0.f;
     } 
       
     float x = val*0.999f*(palette.length-1.f);
@@ -79,10 +86,28 @@ public class LBM {
   } 
   
   // ----------------------------------------------------- FUNCTIONS -----------------------------------------------------
+  void initialize(){
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].surfaceVOF_init(i, j, this);
+  }
+  
   void doTimeStep(){
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         grid[i][j].flowStreamingCollision(i, j, this);
+    
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].sufaceVOF_1(i, j, this);
+    
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].sufaceVOF_2(i, j, this);
+        
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].sufaceVOF_3(i, j, this);
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
