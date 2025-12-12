@@ -6,7 +6,7 @@ float cb(float a) { return a*a*a; }
 float cbrt(float a) { return pow(a,1.f/3.f); }
 
 float sign(float f) {
-  if (f >= 0.f) return 1.f;
+  if (f > 0.f) return 1.f;
   if (f < 0.f) return -1.f;
   return 0.f;
 } 
@@ -17,7 +17,7 @@ boolean inSphere(int x, int y, int r, int cx, int cy){
 
 // --------------------------------------------------- FLUIDS CONST ----------------------------------------------------
 final float nu_fluid = 0.0001f;              // Desbrun : [0.01f, 0.0006f] => 0.0015f
-final float st_fluid = 0.001f;               // surface tension soulde be 10^-6surface tension soulde be 10^-6
+final float st_fluid = 4e-3f;               // surface tension soulde be 10^-6surface tension soulde be 10^-6
 
 // ----------------------------------------------------- LBM CONST -----------------------------------------------------
 final float cs = 0.57735027f;
@@ -30,12 +30,6 @@ final int[] D2Q9_cx = { 0, 1,-1, 0, 0, 1,-1, 1,-1 };
 final int[] D2Q9_cy = { 0, 0, 0, 1,-1, 1,-1,-1, 1 };
 
 // ----------------------------------------------------- LBM FUNCTIONS -----------------------------------------------------
-
-// inplace ?
-void lu_solve(float[] M, float[] x, float[] b, int N, int Nsol) { 
-
-}
-
 
 float plic_cube_reduced(float V, float n1, float n2, float n3) { // optimized solution from SZ and Kawano, source: https://doi.org/10.3390/computation10020021
   float n12 = n1 + n2, n3V = n3 * V;

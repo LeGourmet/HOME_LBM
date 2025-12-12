@@ -16,7 +16,7 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  simulation.setGlobalForceY(-0.16f);
+  simulation.setGlobalForceY(-0.000016f);
   
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
@@ -53,9 +53,11 @@ void draw(){
   float minPhi = Float.MAX_VALUE;
   float maxPhi = Float.MIN_VALUE;
   float totalPhi = 0.f;
+  float minMass = Float.MAX_VALUE;
+  float maxMass = Float.MIN_VALUE;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
-      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
+      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM || simulation.getCell(i,j).getType()==CELL_TYPE.GAS ) continue;
       minP = min(minP, simulation.getCell(i,j).getDensity());
       maxP = max(maxP, simulation.getCell(i,j).getDensity());
       float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
@@ -64,6 +66,8 @@ void draw(){
       minPhi = min(minPhi, simulation.getCell(i,j).getPhi());
       maxPhi = max(maxPhi, simulation.getCell(i,j).getPhi());
       totalPhi += simulation.getCell(i,j).getPhi();
+      minMass = min(minMass, simulation.getCell(i,j).getMass());
+      maxMass = max(maxMass, simulation.getCell(i,j).getMass());
     }
   }
   
@@ -72,8 +76,10 @@ void draw(){
   text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
   text("Phi : ["+nf(minPhi,0,3)+", "+nf(maxPhi,0,3)+"]",10,75);
-  text("Total Phi : "+nf(totalPhi,0,3),10,90);
-
+  text("Total Phi : "+nf(totalPhi,0,3),10,90); 
+  text("Mass : ["+nf(minMass,0,3)+", "+nf(maxMass,0,3)+"]",10,105);
+  
+  
   /*if(!paused && simulation.getT() == nextFrame) {
     String name = "./video/image_";
     int id = nextFrame/10;

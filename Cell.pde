@@ -40,6 +40,7 @@ public class Cell {
         this.type = CELL_TYPE.FLUID;
       else {
         this.type = CELL_TYPE.GAS;
+        this.p = 1.f;
         this.ux = 0.f;
         this.uy = 0.f;
       }   
@@ -82,10 +83,13 @@ public class Cell {
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   
   // -------------------------------------------------- FUNCTIONS DDFs ---------------------------------------------------  
+  
+  // with ddf shifting => feq(i) - w(i) /!\ FREE-HOME-LBM use without shifting /!\ 
   private float computeFiEq(int p_i, float p_p, float p_ux, float p_uy) {
     return p_p * D2Q9_w[p_i] * (1.f + (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 + 0.5f*sq(D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2) - D2Q9_w[p_i];
   }
   
+  // with ddf shifting => feq(i) - w(i) /?\ FREE-HOME-LBM use with shifting also /?\ 
   private float computeFi(int p_i, float p_p, float p_ux, float p_uy, float p_Sxx, float p_Syy, float p_Sxy) {
     return p_p * D2Q9_w[p_i] * (1.f +
                                 (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
@@ -132,15 +136,13 @@ public class Cell {
       else
         fin[i] = computeFi(i, pN, uxN, uyN, SxxN, SyyN, SxyN);
       
-      fon[i] = computeFi(i, p, ux, uy, Sxx, Syy, Sxy); // todo check for use j ?
+      fon[i] = computeFi(i, p, ux, uy, Sxx, Syy, Sxy);
     }
 
     // ---------------------------------- SURFACE 0 ---------------------------------- 
     for(int i=1; i<9 ;i++){
-      int j = (i%2==0) ? i-1 : i+1;
-      
-      int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-      int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
+      int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
+      int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
       
       mass += p_simulation.getCell(idNx, idNy).getMassex();
     }
@@ -164,13 +166,14 @@ public class Cell {
       
       // do some buble compute
       
-      float rho_laplace = 6.f * st * calculate_curvature(phiN);
+      float rho_laplace = st * calculate_curvature(phiN);
+      //float rho_laplace = 6.f * st;
       
       // limit for stability purpose (simulation can't exceed mach 1)
       float uxTmp = ux;
       float uyTmp = uy;
       float uTmpNorm = sqrt(sq(uxTmp+0.5f*fx)+sq(uyTmp+0.5f*fy));
-      if(uTmpNorm>cs){
+      if(uTmpNorm>0.4){
         uxTmp *= cs/uTmpNorm;
         uyTmp *= cs/uTmpNorm;
       }
@@ -178,7 +181,8 @@ public class Cell {
       float[] feq = new float[9]; // reconstruct f from neighbor gas lattice points
       for(int i=0; i<9 ;i++)
         feq[i] = computeFiEq(i, 1.f - rho_laplace, uxTmp, uyTmp); // do some buble stuffs
-  
+      
+      // could be fucked
       for(int i=1; i<9 ;i++) {
         int j = (i%2==0) ? i-1 : i+1;
         
@@ -200,16 +204,13 @@ public class Cell {
       }
     }
     
-    // cancel ddf shifting ?!?!?
+    // unshifting ?
     for(int i=0; i<9 ;i++) fin[i] += D2Q9_w[i];
 
     // ---------------------------------- RECONSTRUCTION ----------------------------------
-    //float pT   = 1.f + fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];
     float pT   = fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];
     float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) / pT;
     float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) / pT;
-    //float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8] - cs2*(pT-1.f)) / pT;
-    //float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7] - cs2*(pT-1.f)) / pT;
     float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8]) / pT - cs2;
     float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7]) / pT - cs2;
     float SxyT = (fin[5] + fin[6] - fin[7] - fin[8]) / pT;
@@ -232,7 +233,6 @@ public class Cell {
            if (mass > pT || TYPE_NO_G) type = CELL_TYPE.INTERFACE_TO_FLUID; // set flag interface->fluid
       else if (mass < 0.f || TYPE_NO_F) type = CELL_TYPE.INTERFACE_TO_GAS; // set flag interface->gas
     }
-  
     // do some stuff with bubble and Stress tensor
     
     // ---------------------------------- COLLISION ----------------------------------
@@ -270,10 +270,8 @@ public class Cell {
     
     float pt = 0.f, uxt = 0.f, uyt = 0.f, counter = 0.f; // average over all fluid/interface neighbors
     for (int i=1; i<9 ;i++){
-      int j = (i%2==0) ? i-1 : i+1;
-      
-      int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-      int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
+      int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
+      int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
   
       if (p_simulation.getCell(idNx,idNy).getType() == CELL_TYPE.FLUID) {
         counter += 1.f;
@@ -309,14 +307,12 @@ public class Cell {
   public void sufaceVOF_1(int p_x, int p_y, LBM p_simulation) {
     if (type == CELL_TYPE.INTERFACE_TO_FLUID) {
       for(int i=1; i<9; i++) {
-        int j = (i%2==0) ? i-1 : i+1;
-      
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
-       
-        CELL_TYPE typeM = p_simulation.getCell(idNx,idNy).getType();
-             if (typeM == CELL_TYPE.INTERFACE_TO_GAS) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE); // prevent interface neighbor cells from becoming gas
-        else if (typeM == CELL_TYPE.GAS             ) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.GAS_TO_INTERFACE); // neighbor cell was gas and must change to interface
+        int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
+        int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
+        
+        CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
+             if (typeN == CELL_TYPE.INTERFACE_TO_GAS) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE); // prevent interface neighbor cells from becoming gas
+        else if (typeN == CELL_TYPE.GAS             ) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.GAS_TO_INTERFACE); // neighbor cell was gas and must change to interface
       }
     }
   }
@@ -325,11 +321,9 @@ public class Cell {
     if (type == CELL_TYPE.GAS_TO_INTERFACE) { // initialize the fi of gas cells that should become interface
       float pt = 0.f, uxt = 0.f, uyt = 0.f, counter = 0.f; // average over all fluid/interface neighbors
       for (int i=1; i<9 ;i++){
-        int j = (i%2==0) ? i-1 : i+1;
+        int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
+        int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
         
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
-    
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType(); 
         if (typeN == CELL_TYPE.FLUID || typeN == CELL_TYPE.INTERFACE || typeN == CELL_TYPE.INTERFACE_TO_FLUID) {
           counter += 1.f;
@@ -342,21 +336,19 @@ public class Cell {
       _p   = counter > 0.f ? pt  / counter : 1.f;
       _ux  = counter > 0.f ? uxt / counter : 0.f;
       _uy  = counter > 0.f ? uyt / counter : 0.f;
-      // could be a problem ?
+      // different in FREE-HOME-LBM => use eq without ddf shifting ...
       _Sxx = (_ux*_ux - cs2);
       _Syy = (_uy*_uy - cs2);
       _Sxy = (_ux*_uy);
     } else if (type == CELL_TYPE.INTERFACE_TO_GAS) { // flag interface->gas is set
       for(int i=1; i<9; i++) {
-        int j = (i%2==0) ? i-1 : i+1;
-      
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
+        int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
+        int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
         
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
         if (typeN == CELL_TYPE.FLUID || typeN == CELL_TYPE.INTERFACE_TO_FLUID)
-          type = CELL_TYPE.INTERFACE; // in fluidx and base code => prevent neighboors become fluid ?
-          //p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE); // prevent fluid or interface neighbors that turn to fluid from being/becoming fluid
+          //type = CELL_TYPE.INTERFACE; // in fluidx and base code => prevent neighboors become fluid ?
+          p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE); // prevent fluid or interface neighbors that turn to fluid from being/becoming fluid
           // + buble merge detector
       }
     }
@@ -388,14 +380,12 @@ public class Cell {
   
     float counter = 0.f; // count (fluid|interface) neighbors
     for (int i=1; i<9 ;i++) {
-      int j = (i%2==0) ? i-1 : i+1;
+      int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
+      int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
         
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
-        
-        CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if(typeN==CELL_TYPE.FLUID || typeN==CELL_TYPE.INTERFACE || typeN==CELL_TYPE.INTERFACE_TO_FLUID || typeN==CELL_TYPE.GAS_TO_INTERFACE) 
-          counter += 1.f;
+      CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
+      if(typeN==CELL_TYPE.FLUID || typeN==CELL_TYPE.INTERFACE || typeN==CELL_TYPE.INTERFACE_TO_FLUID || typeN==CELL_TYPE.GAS_TO_INTERFACE) 
+        counter += 1.f;
     }
     
     mass += (counter>0.f) ? 0.f : massex; // if excess mass can't be distributed to neighboring interface or fluid cells, add it to local mass (ensure mass conservation)
