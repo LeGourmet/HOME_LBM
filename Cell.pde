@@ -22,12 +22,19 @@ public class Cell {
   public Cell(CELL_TYPE p_type, float p_p, float p_ux, float p_uy) {
     this.type = p_type;
     
-    this.p = p_p;
+    this.p = max(p_p,0.f);
     this.ux = p_ux;
     this.uy = p_uy;
     this.Sxx = (p_ux*p_ux - cs2);
     this.Syy = (p_uy*p_uy - cs2);
     this.Sxy = (p_ux*p_uy);  // Syx = Sxy; // symetric tensor
+    
+    this._p   = this.p;
+    this._ux  = this.ux;
+    this._uy  = this.uy;
+    this._Sxx = this.Sxx;
+    this._Syy = this.Syy;
+    this._Sxy = this.Sxy;  // Syx = Sxy; // symetric tensor
   } 
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
@@ -60,74 +67,73 @@ public class Cell {
   }
   
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
-  public void flowStreaming(int p_x, int p_y, LBM p_simulation) {
-    CELL_TYPE type = p_simulation.getCell(p_x, p_y).getType();
+  public void flowStreamingCollision(int p_x, int p_y, LBM p_simulation) {
     if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
         
-    _p = 1.f;
-    _ux = 0.f;
-    _uy = 0.f;
-    _Sxx = 0.f;
-    _Syy = 0.f;
-    _Sxy = 0.f;
+    // external forces = body forces : Newton second law of motion : F = M*G = M*A => g = A
+    float fx = p_simulation.getForceX(p_x, p_y);
+    float fy = p_simulation.getForceY(p_x, p_y);
+        
+    float nu = nu_fluid;
     
-    for(int i=0; i<9 ;i++){
-      int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
+    // ---------------------------------- STREAMING ----------------------------------
+    float[] fin = new float[9];
+    fin[0] = computeFi(0, p, ux, uy, Sxx, Syy, Sxy);
+    
+    for(int i=1; i<9 ;i++){
+      int j = (i%2==0) ? i-1 : i+1;
       
       int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
       int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
 
       CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-      float pN = p_simulation.getCell(idNx,idNy).getPressure();
-      float uxN = p_simulation.getCell(idNx,idNy).getVelocityX();
-      float uyN = p_simulation.getCell(idNx,idNy).getVelocityY();
+      float pN   = p_simulation.getCell(idNx,idNy).getPressure();
+      float uxN  = p_simulation.getCell(idNx,idNy).getVelocityX();
+      float uyN  = p_simulation.getCell(idNx,idNy).getVelocityY();
       float SxxN = p_simulation.getCell(idNx,idNy).getSxx();
       float SyyN = p_simulation.getCell(idNx,idNy).getSyy();
       float SxyN = p_simulation.getCell(idNx,idNy).getSxy();
 
-      float fi;
-      if(typeN==CELL_TYPE.SOLID){
-        fi = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
-      } else if(typeN==CELL_TYPE.EQUILIBRIUM){
-        fi = computeFiEq(i, pN, uxN, uyN);
-      } else { 
-        fi = computeFi(i, pN, uxN, uyN, SxxN, SyyN, SxyN);
-      }
-      
-      _p += fi;
-      _ux += fi * D2Q9_cx[i];
-      _uy += fi * D2Q9_cy[i];
-      _Sxx += fi * (D2Q9_cx[i]*D2Q9_cx[i]-cs2);
-      _Syy += fi * (D2Q9_cy[i]*D2Q9_cy[i]-cs2);
-      _Sxy += fi * (D2Q9_cx[i]*D2Q9_cy[i]);
+      if(typeN==CELL_TYPE.SOLID)
+        fin[i] = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
+      else if(typeN==CELL_TYPE.EQUILIBRIUM)
+        fin[i] = computeFiEq(i, pN, uxN, uyN);
+      else
+        fin[i] = computeFi(i, pN, uxN, uyN, SxxN, SyyN, SxyN);
     }
-  }
-  
-  public void flowCollision(int p_x, int p_y, LBM p_simulation) { 
-    CELL_TYPE type = p_simulation.getCell(p_x, p_y).getType();
-    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
     
-    float rho = rho_fluid;
-    float nu = nu_fluid ;
+    // ---------------------------------- RECONSTRUCTION ----------------------------------
+    float pT   =  1.f + fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];  // 1 + sum(fi);
+    float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]);                                  //     sum(fi * cix);
+    float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]);                                  //     sum(fi * ciy);
+    float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8]) - (pT-1.f)*cs2;                   //     sum(fi * (cix*cix-cs2));
+    float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7]) - (pT-1.f)*cs2;                   //     sum(fi * (ciy*ciy-cs2));
+    float SxyT = (fin[5] + fin[6] - fin[7] - fin[8]);                                                    //     sum(fi * (cix*ciy));
+    
+    // ---------------------------------- COLLISION ----------------------------------
+    float uTNorm = sqrt(sq(uxT+0.5f*fx)+sq(uyT+0.5f*fy));
+    if(uTNorm>cs){
+      uxT *= cs/uTNorm;
+      uyT *= cs/uTNorm;
+    }
+    
     float tau = 0.5f + nu/cs2;
     
-    // external forces = body forces : Newton second law of motion : F = M*G = M*A => g = A
-    float fx = p_simulation.getForceX(p_x, p_y);
-    float fy = p_simulation.getForceY(p_x, p_y);
-        
-    // ajoute de la pression jusqu'au buffer overflow ! => trouver mieux
-    float _uNorm = sqrt(sq(_ux+0.5f*fx)+sq(_uy+0.5f*fy));
-    if(_uNorm>cs){
-      _ux *= cs/_uNorm;
-      _uy *= cs/_uNorm;
-    }
-    
     // compute moment at time t+1
-    p = _p; 
-    ux = _ux + 0.5f*fx; // (Guo forcing, Krueger p.233f)
-    uy = _uy + 0.5f*fy; // (Guo forcing, Krueger p.233f)
-    Sxx = (tau-1.f)/(2.f*tau)*(_Sxx-_Syy+_uy*_uy+fx*_ux-fy*_uy) + (tau+1.f)/(2.f*tau)*_ux*_ux + fx*_ux;
-    Syy = (tau-1.f)/(2.f*tau)*(_Syy-_Sxx+_ux*_ux+fy*_uy-fx*_ux) + (tau+1.f)/(2.f*tau)*_uy*_uy + fy*_uy;
-    Sxy = (1.f-1.f/tau)*_Sxy + _ux*_uy/tau + (2.f*tau-1.f)/(2.f*tau)*(fx*_uy+fy*_ux);
+    _p = pT; 
+    _ux = uxT + 0.5f*fx; // (Guo forcing, Krueger p.233f)
+    _uy = uyT + 0.5f*fy; // (Guo forcing, Krueger p.233f)
+    _Sxx = (tau-1.f)/(2.f*tau)*(SxxT-SyyT+uyT*uyT+fx*uxT-fy*uyT) + (tau+1.f)/(2.f*tau)*uxT*uxT + fx*uxT;
+    _Syy = (tau-1.f)/(2.f*tau)*(SyyT-SxxT+uxT*uxT+fy*uyT-fx*uxT) + (tau+1.f)/(2.f*tau)*uyT*uyT + fy*uyT;
+    _Sxy = (1.f-1.f/tau)*SxyT + uxT*uyT/tau + (2.f*tau-1.f)/(2.f*tau)*(fx*uyT+fy*uxT);
+  }
+  
+  public void swapMoments(int p_x, int p_y, LBM p_simulation) { 
+    this.p = this._p;
+    this.ux = this._ux;
+    this.uy = this._uy;
+    this.Sxx = this._Sxx;
+    this.Syy = this._Syy;
+    this.Sxy = this._Sxy;
   } 
 }
