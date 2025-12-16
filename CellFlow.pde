@@ -33,10 +33,11 @@ public class CellFlow {
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public float getPressure() { return this.p; }
+  public float getFuturPressure() { return this._p; }
   public float getVelocityX() { return this.ux; }
-  public float getOldVelocityX() { return this._ux; }
+  public float getFuturVelocityX() { return this._ux; }
   public float getVelocityY() { return this.uy; }
-  public float getOldVelocityY() { return this._uy; }
+  public float getFuturVelocityY() { return this._uy; }
   public float getSxx() { return this.Sxx; }
   public float getSyy() { return this.Syy; }
   public float getSxy() { return this.Sxy; }

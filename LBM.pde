@@ -49,9 +49,7 @@ public class LBM {
   public CELL_TYPE getType(int p_x, int p_y) { return this.gridType[p_x][p_y]; }
   public float getPressure(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getPressure(); }
   public float getVelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityX(); }
-  public float getOldVelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getOldVelocityX(); }
   public float getVelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityY(); }
-  public float getOldVelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getOldVelocityY(); }
   public float getSxx(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSxx(); }
   public float getSyy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSyy(); }
   public float getSxy(int p_x, int p_y){ return this.gridFlow[p_x][p_y].getSxy(); }
@@ -125,7 +123,7 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getOldVelocityX(i,j), getOldVelocityY(i,j), this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getVelocityX(i,j), getVelocityY(i,j), this);
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
@@ -139,7 +137,7 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (getOldVelocityX(i,j)+getVelocityX(i,j))*0.5f, (getOldVelocityY(i,j)+getVelocityY(i,j))*0.5f, this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (gridFlow[i][j].getVelocityX()+gridFlow[i][j].getFuturVelocityX())*0.5f, (gridFlow[i][j].getVelocityY()+gridFlow[i][j].getFuturVelocityY())*0.5f, this);
     
     // should trilinear evaluate u !! 
     for(int i=0; i<Nx ;i++)
