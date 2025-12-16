@@ -106,8 +106,8 @@ public class Cell {
     float rhoT =  1.f + fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];  // 1 + sum(fi);
     float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) / rhoT + 0.5f * fx;               //     sum(fi * cix);
     float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) / rhoT + 0.5f * fy;               //     sum(fi * ciy);
-    float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8] - cs2) / rhoT - cs2;               //     sum(fi * (cix*cix-cs2));
-    float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7] - cs2) / rhoT - cs2;               //     sum(fi * (ciy*ciy-cs2));
+    float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8] + cs2) / rhoT - cs2;               //     sum(fi * (cix*cix-cs2));
+    float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7] + cs2) / rhoT - cs2;               //     sum(fi * (ciy*ciy-cs2));
     float SxyT = (fin[5] + fin[6] - fin[7] - fin[8]) / rhoT;                                             //     sum(fi * (cix*ciy));
     
     // ---------------------------------- COLLISION ----------------------------------

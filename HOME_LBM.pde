@@ -16,7 +16,7 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  //simulation.setGlobalForceX(0.0005);
+  //simulation.setGlobalForceX(0.0005f);
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
