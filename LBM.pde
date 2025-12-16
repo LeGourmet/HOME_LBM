@@ -58,7 +58,7 @@ public class LBM {
     
     if(p_colorType == COLOR_TYPE.DENSITY){
       palette = new int[]{color(68,1,84), color(59,82,139), color(33,145,140), color(94,201,98), color(253,231,37)};
-      val = constrain(grid[p_x][p_y].p*0.5f, 0.f, 1.f);
+      val = constrain(grid[p_x][p_y].rho*0.5f, 0.f, 1.f);
     }else if(p_colorType == COLOR_TYPE.VELOCITY){
       palette = new int[]{color(70,70,219), color(0,255,91), color(0,128,0), color(255,255,0), color(255,96,0), color(107,0,0), color(223,77,77)};
       val = constrain(sqrt(sq(grid[p_x][p_y].ux) + sq(grid[p_x][p_y].uy))/cs, 0.f, 1.f);

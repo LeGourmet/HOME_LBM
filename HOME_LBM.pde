@@ -23,7 +23,7 @@ void setup(){
       if (j==0)                                                          simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f); 
       else if (j==simulation.getNy()-1)                                  simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
       else if (inSphere(i,j,GRID_SIZE_X/15,GRID_SIZE_X/2,GRID_SIZE_Y/2)) simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
-      else                                                               simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, (j>260 && j<290 && i>50 && i<GRID_SIZE_X-50) ? 1.f : 0.f);
+      else                                                               simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, (j>GRID_SIZE_Y-GRID_SIZE_Y/10-GRID_SIZE_Y/30 && j<GRID_SIZE_Y-GRID_SIZE_Y/30 && i>GRID_SIZE_X/6 && i<GRID_SIZE_X-GRID_SIZE_X/6) ? 1.f : 0.f);
     }
   }
   

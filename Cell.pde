@@ -4,14 +4,14 @@ public class Cell {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
   private CELL_TYPE type;
     
-  private float p;
+  private float rho;
   private float ux;
   private float uy;
   private float Sxx;
   private float Syy;
   private float Sxy;
   
-  private float _p;
+  private float _rho;
   private float _ux;
   private float _uy;
   private float _Sxx;
@@ -23,48 +23,50 @@ public class Cell {
   private float massex;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
-  public Cell(CELL_TYPE p_type, float p_p, float p_ux, float p_uy, float p_phi) {
+  public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy, float p_phi) {
     this.type = p_type;
     
-    this.p   = max(p_p,0.f);
+    this.rho = max(p_rho,0.f);
     this.ux  = p_ux;
     this.uy  = p_uy;
+    this.Sxx = 0.f;
+    this.Syy = 0.f;
+    this.Sxy = 0.f;
     
-    if(this.type == CELL_TYPE.SOLID) 
-      this.phi = 0.f;
-    else if(this.type == CELL_TYPE.EQUILIBRIUM)
+    if(this.type == CELL_TYPE.SOLID) {
+      this.phi = 0.f;  
+    } else if(this.type == CELL_TYPE.EQUILIBRIUM) {
       this.phi = constrain(p_phi, 0.f, 1.f);
-    else {
+      this.Sxx = (this.ux*this.ux - cs2);
+      this.Syy = (this.uy*this.uy - cs2);
+      this.Sxy = (this.ux*this.uy); // Syx = Sxy; // symetric tensor
+    } else {
       this.phi = (p_phi<0.5f) ? 0.f : 1.f;
       if(this.phi==1.f)
         this.type = CELL_TYPE.FLUID;
       else {
         this.type = CELL_TYPE.GAS;
-        this.p = 1.f;
+        this.rho = 1.f;
         this.ux = 0.f;
         this.uy = 0.f;
-      }   
+      }
     }
     
-    this.Sxx = (this.ux*this.ux - cs2);
-    this.Syy = (this.uy*this.uy - cs2);
-    this.Sxy = (this.ux*this.uy); // Syx = Sxy; // symetric tensor
-    
-    this._p   = this.p;
+    this._rho   = this.rho;
     this._ux  = this.ux;
     this._uy  = this.uy;
     this._Sxx = this.Sxx;
     this._Syy = this.Syy;
     this._Sxy = this.Sxy;  // Syx = Sxy; // symetric tensor
     
-    this.mass = this.phi*this.p;
+    this.mass = this.phi*this.rho;
     this.massex = 0.f;
   } 
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public CELL_TYPE getType()   { return this.type; }
-  public float getDensity()    { return this.p; }
-  public float get_Density()   { return this._p; }
+  public float getDensity()    { return this.rho; }
+  public float get_Density()   { return this._rho; }
   public float getVelocityX()  { return this.ux; }
   public float get_VelocityX() { return this._ux; }
   public float getVelocityY()  { return this.uy; }
@@ -78,24 +80,24 @@ public class Cell {
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setType(CELL_TYPE p_type)      { this.type = p_type; }
-  public void setDensity(float p_density)    { this.p = max(0.f,p_density); }
+  public void setDensity(float p_density)    { this.rho = max(0.f,p_density); }
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   
   // -------------------------------------------------- FUNCTIONS DDFs ---------------------------------------------------  
   
-  // with ddf shifting => feq(i) - w(i) /!\ FREE-HOME-LBM use without shifting /!\ 
-  private float computeFiEq(int p_i, float p_p, float p_ux, float p_uy) {
-    return p_p * D2Q9_w[p_i] * (1.f + (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 + 0.5f*sq(D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2) - D2Q9_w[p_i];
+  // without ddf shifting => feq(i) - w(i) 
+  private float computeFiEq(int p_i, float p_rho, float p_ux, float p_uy) {
+    return D2Q9_w[p_i] * p_rho * (1.f + (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 + 0.5f*sq(D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2);
   }
   
-  // with ddf shifting => feq(i) - w(i) /?\ FREE-HOME-LBM use with shifting also /?\ 
-  private float computeFi(int p_i, float p_p, float p_ux, float p_uy, float p_Sxx, float p_Syy, float p_Sxy) {
-    return p_p * D2Q9_w[p_i] * (1.f +
-                                (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
-                                0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-cs2) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-cs2))/cs4 +
-                                0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*cs2) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
-                                       (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6) - D2Q9_w[p_i];
+  // without ddf shifting => feq(i) - w(i)
+  private float computeFi(int p_i, float p_rho, float p_ux, float p_uy, float p_Sxx, float p_Syy, float p_Sxy) {
+    return D2Q9_w[p_i] * p_rho * (1.f +
+                                   (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
+                                   0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-cs2) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-cs2))/cs4 +
+                                   0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*cs2) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
+                                          (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6 );
   }
   
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
@@ -111,7 +113,7 @@ public class Cell {
     
     // ---------------------------------- STREAMING ----------------------------------
     float[] fin = new float[9];
-    fin[0] = computeFi(0, p, ux, uy, Sxx, Syy, Sxy);
+    fin[0] = computeFi(0, rho, ux, uy, Sxx, Syy, Sxy);
     float[] fon = new float[9];
     fon[0] = fin[0];
     
@@ -122,7 +124,7 @@ public class Cell {
       int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
 
       CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-      float pN   = p_simulation.getCell(idNx,idNy).getDensity();
+      float rhoN = p_simulation.getCell(idNx,idNy).getDensity();
       float uxN  = p_simulation.getCell(idNx,idNy).getVelocityX();
       float uyN  = p_simulation.getCell(idNx,idNy).getVelocityY();
       float SxxN = p_simulation.getCell(idNx,idNy).getSxx();
@@ -130,35 +132,28 @@ public class Cell {
       float SxyN = p_simulation.getCell(idNx,idNy).getSxy();
 
       if(typeN==CELL_TYPE.SOLID)
-        fin[i] = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
+        fin[i] = computeFi(i, rho, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
       else if(typeN==CELL_TYPE.EQUILIBRIUM)
-        fin[i] = computeFiEq(i, pN, uxN, uyN);
+        fin[i] = computeFiEq(i, rhoN, uxN, uyN);
       else
-        fin[i] = computeFi(i, pN, uxN, uyN, SxxN, SyyN, SxyN);
+        fin[i] = computeFi(i, rhoN, uxN, uyN, SxxN, SyyN, SxyN);
       
-      fon[i] = computeFi(i, p, ux, uy, Sxx, Syy, Sxy);
+      fon[i] = computeFi(i, rho, ux, uy, Sxx, Syy, Sxy);
     }
 
     // ---------------------------------- SURFACE 0 ---------------------------------- 
-    for(int i=1; i<9 ;i++){
-      int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
-      int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
-      
-      mass += p_simulation.getCell(idNx, idNy).getMassex();
-    }
+    for(int i=1; i<9 ;i++)
+      mass += p_simulation.getCell(mod(p_x+D2Q9_cx[i],p_simulation.getNx()), mod(p_y+D2Q9_cy[i],p_simulation.getNy())).getMassex();
     
     if(type == CELL_TYPE.FLUID)
       for(int i=1; i<9 ;i++)
         mass += fin[i] - fon[i];
     else if(type == CELL_TYPE.INTERFACE){
       float phiN[] = new float[9]; // cache fill level of neighbor lattice points
-      phiN[0] = p>0.f ? constrain(mass/p, 0.f, 1.f) : 0.5f; // don't load phi[n] from memory, instead recalculate it with mass corrected by excess mass
+      phiN[0] = rho>0.f ? constrain(mass/rho, 0.f, 1.f) : 0.5f; // don't load phi[n] from memory, instead recalculate it with mass corrected by excess mass
       for(int i=1; i<9 ;i++) {
-        int j = (i%2==0) ? i-1 : i+1;
-      
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
-        
+        int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
+        int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
         phiN[i] = p_simulation.getCell(idNx, idNy).getPhi(); // cache fill level of neighbor lattice points
         
         // do some other stuff if solid !
@@ -166,14 +161,14 @@ public class Cell {
       
       // do some buble compute
       
-      float rho_laplace = st * calculate_curvature(phiN);
-      //float rho_laplace = 6.f * st;
+      //float rho_laplace = 6.f* st * calculate_curvature(phiN);
+      float rho_laplace = 6.f * st;
       
       // limit for stability purpose (simulation can't exceed mach 1)
       float uxTmp = ux;
       float uyTmp = uy;
       float uTmpNorm = sqrt(sq(uxTmp+0.5f*fx)+sq(uyTmp+0.5f*fy));
-      if(uTmpNorm>0.4){
+      if(uTmpNorm>cs){
         uxTmp *= cs/uTmpNorm;
         uyTmp *= cs/uTmpNorm;
       }
@@ -182,55 +177,37 @@ public class Cell {
       for(int i=0; i<9 ;i++)
         feq[i] = computeFiEq(i, 1.f - rho_laplace, uxTmp, uyTmp); // do some buble stuffs
       
-      // could be fucked
       for(int i=1; i<9 ;i++) {
-        int j = (i%2==0) ? i-1 : i+1;
-        
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
-        
-        CELL_TYPE typeN = p_simulation.getCell(idNx, idNy).getType();
-             if (typeN == CELL_TYPE.FLUID) mass += fin[i] - fon[j];
-        else if (typeN == CELL_TYPE.INTERFACE) mass += 0.5f * (phiN[i] + phiN[0]) * (fin[i] - fon[j]);
+        int j = (i%2==0) ? i-1 : i+1;        
+        CELL_TYPE typeN = p_simulation.getCell(mod(p_x+D2Q9_cx[i],p_simulation.getNx()), mod(p_y+D2Q9_cy[i],p_simulation.getNy())).getType();
+             if (typeN == CELL_TYPE.FLUID) mass += fin[j] - fon[i];
+        else if (typeN == CELL_TYPE.INTERFACE || typeN == CELL_TYPE.INTERFACE_TO_FLUID || typeN == CELL_TYPE.INTERFACE_TO_GAS || typeN == CELL_TYPE.GAS_TO_INTERFACE) mass += 0.5f * (phiN[i] + phiN[0]) * (fin[j] - fon[i]);
       }
   
       for(int i=1; i<9 ;i++) {
         int j = (i%2==0) ? i-1 : i+1;
-        
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
-        
-        if(p_simulation.getCell(idNx, idNy).getType() == CELL_TYPE.GAS) fin[i] = feq[j] - fon[j] + feq[i];
+        if(p_simulation.getCell(mod(p_x+D2Q9_cx[i],p_simulation.getNx()), mod(p_y+D2Q9_cy[i],p_simulation.getNy())).getType() == CELL_TYPE.GAS) fin[i] = feq[j] - fon[j] + feq[i];
       }
     }
-    
-    // unshifting ?
-    for(int i=0; i<9 ;i++) fin[i] += D2Q9_w[i];
 
-    // ---------------------------------- RECONSTRUCTION ----------------------------------
-    float pT   = fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];
-    float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) / pT;
-    float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) / pT;
-    float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8]) / pT - cs2;
-    float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7]) / pT - cs2;
-    float SxyT = (fin[5] + fin[6] - fin[7] - fin[8]) / pT;
+    // ---------------------------------- RECONSTRUCTION ----------------------------------    
+    float rhoT = fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];
+    float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) / rhoT;
+    float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) / rhoT;    
+    float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8]) / rhoT - cs2;
+    float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7]) / rhoT - cs2;
+    float SxyT = (fin[5] + fin[6] - fin[7] - fin[8]) / rhoT;
     
     // ---------------------------------- SURFACE 0.5 ---------------------------------- 
     
     if (type == CELL_TYPE.INTERFACE) {
       boolean TYPE_NO_F = true, TYPE_NO_G = true; // temporary flags for no fluid or gas neighbors
       for (int i=1; i<9 ;i++) {
-        int j = (i%2==0) ? i-1 : i+1;
-      
-        int idNx = mod(p_x+D2Q9_cx[j],p_simulation.getNx());
-        int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
-  
-        CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        
+        CELL_TYPE typeN = p_simulation.getCell(mod(p_x+D2Q9_cx[i],p_simulation.getNx()), mod(p_y+D2Q9_cy[i],p_simulation.getNy())).getType();
         TYPE_NO_F = TYPE_NO_F && typeN != CELL_TYPE.FLUID;
         TYPE_NO_G = TYPE_NO_G && typeN != CELL_TYPE.GAS;
       }
-           if (mass > pT || TYPE_NO_G) type = CELL_TYPE.INTERFACE_TO_FLUID; // set flag interface->fluid
+           if (mass > rhoT || TYPE_NO_G) type = CELL_TYPE.INTERFACE_TO_FLUID; // set flag interface->fluid
       else if (mass < 0.f || TYPE_NO_F) type = CELL_TYPE.INTERFACE_TO_GAS; // set flag interface->gas
     }
     // do some stuff with bubble and Stress tensor
@@ -246,7 +223,7 @@ public class Cell {
     float tau = nu/cs2 + 0.5f;
     
     // compute moment at time t+1
-    _p = pT; 
+    _rho = rhoT; 
     _ux = uxT + 0.5f*fx; // (Guo forcing, Krueger p.233f)
     _uy = uyT + 0.5f*fy; // (Guo forcing, Krueger p.233f)
     _Sxx = (tau-1.f)/(2.f*tau)*(SxxT-SyyT+uyT*uyT+fx*uxT-fy*uyT) + (tau+1.f)/(2.f*tau)*uxT*uxT + fx*uxT;
@@ -255,7 +232,7 @@ public class Cell {
   }
   
   public void swapMoments() {     
-    this.p = this._p;
+    this.rho = this._rho;
     this.ux = this._ux;
     this.uy = this._uy;
     this.Sxx = this._Sxx;
@@ -268,16 +245,16 @@ public class Cell {
   public void surfaceVOF_init(int p_x, int p_y, LBM p_simulation){
     if(type != CELL_TYPE.GAS) return;
     
-    float pt = 0.f, uxt = 0.f, uyt = 0.f, counter = 0.f; // average over all fluid/interface neighbors
+    float rhot = 0.f, uxt = 0.f, uyt = 0.f, counter = 0.f; // average over all fluid/interface neighbors
     for (int i=1; i<9 ;i++){
       int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
       int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
   
       if (p_simulation.getCell(idNx,idNy).getType() == CELL_TYPE.FLUID) {
         counter += 1.f;
-        pt  += p_simulation.getCell(idNx,idNy).getDensity();
-        uxt += p_simulation.getCell(idNx,idNy).getVelocityX();
-        uyt += p_simulation.getCell(idNx,idNy).getVelocityY();
+        rhot += p_simulation.getCell(idNx,idNy).getDensity();
+        uxt  += p_simulation.getCell(idNx,idNy).getVelocityX();
+        uyt  += p_simulation.getCell(idNx,idNy).getVelocityY();
       }
     }
     
@@ -285,14 +262,16 @@ public class Cell {
     
     type = CELL_TYPE.INTERFACE;
     
-    p =  pt / counter;
-    ux = uxt / counter;
-    uy = uyt / counter;
+    rho = rhot / counter;
+    ux  = uxt / counter;
+    uy  = uyt / counter;
+    
+   
     Sxx = (ux*ux - cs2);
     Syy = (uy*uy - cs2);
     Sxy = (ux*uy);
 
-    _p   = p;
+    _rho = rho;
     _ux  = ux;
     _uy  = uy;
     _Sxx = Sxx;
@@ -300,7 +279,7 @@ public class Cell {
     _Sxy = Sxy;  // Syx = Sxy; // symetric tensor
     
     phi = 0.5f; 
-    mass = phi*p;
+    mass = phi*rho;
     massex = 0.f; 
   }
   
@@ -319,7 +298,7 @@ public class Cell {
   
   public void sufaceVOF_2(int p_x, int p_y, LBM p_simulation) {
     if (type == CELL_TYPE.GAS_TO_INTERFACE) { // initialize the fi of gas cells that should become interface
-      float pt = 0.f, uxt = 0.f, uyt = 0.f, counter = 0.f; // average over all fluid/interface neighbors
+      float rhot = 0.f, uxt = 0.f, uyt = 0.f, counter = 0.f; // average over all fluid/interface neighbors
       for (int i=1; i<9 ;i++){
         int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
         int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
@@ -327,13 +306,13 @@ public class Cell {
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType(); 
         if (typeN == CELL_TYPE.FLUID || typeN == CELL_TYPE.INTERFACE || typeN == CELL_TYPE.INTERFACE_TO_FLUID) {
           counter += 1.f;
-          pt  += p_simulation.getCell(idNx,idNy).get_Density();
-          uxt += p_simulation.getCell(idNx,idNy).get_VelocityX();
-          uyt += p_simulation.getCell(idNx,idNy).get_VelocityY();
+          rhot += p_simulation.getCell(idNx,idNy).get_Density();
+          uxt  += p_simulation.getCell(idNx,idNy).get_VelocityX();
+          uyt  += p_simulation.getCell(idNx,idNy).get_VelocityY();
         }
       }
       
-      _p   = counter > 0.f ? pt  / counter : 1.f;
+      _rho = counter > 0.f ? rhot  / counter : 1.f;
       _ux  = counter > 0.f ? uxt / counter : 0.f;
       _uy  = counter > 0.f ? uyt / counter : 0.f;
       // different in FREE-HOME-LBM => use eq without ddf shifting ...
@@ -347,8 +326,8 @@ public class Cell {
         
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
         if (typeN == CELL_TYPE.FLUID || typeN == CELL_TYPE.INTERFACE_TO_FLUID)
-          //type = CELL_TYPE.INTERFACE; // in fluidx and base code => prevent neighboors become fluid ?
-          p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE); // prevent fluid or interface neighbors that turn to fluid from being/becoming fluid
+          type = CELL_TYPE.INTERFACE; // in fluidx and base code => prevent neighboors become fluid ?
+          //p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE); // prevent fluid or interface neighbors that turn to fluid from being/becoming fluid
           // + buble merge detector
       }
     }
@@ -360,22 +339,28 @@ public class Cell {
     
     if (type == CELL_TYPE.FLUID || type == CELL_TYPE.INTERFACE_TO_FLUID) {
       type = CELL_TYPE.FLUID;
-      massex = mass-_p; // dump mass-rho difference into excess mass
-      mass = _p; // fluid cell mass has to equal rho
+      massex = mass-_rho; // dump mass-rho difference into excess mass
+      mass = _rho; // fluid cell mass has to equal rho
       phi = 1.f;
       // mlflow[0].previous_tag[curind] = mlflow[0].tag_matrix[curind];
       // mlflow[0].tag_matrix[curind] = -1;
       // if IL => if (mlflow[0].previous_tag[curind] > 0) atomicExch(&mlflow[0].split_flag, 1);
     } else if (type == CELL_TYPE.INTERFACE || type == CELL_TYPE.GAS_TO_INTERFACE) {
       type = CELL_TYPE.INTERFACE;
-      massex = mass > _p ? mass-_p : mass<0.f ? mass : 0.f; // allow interface cells with mass>rho or mass<0
-      mass = constrain(mass, 0.f, _p);
-      phi = _p>0.f ? mass/_p : 0.5f ; // calculate fill level for next step (only necessary for interface cells)
+      massex = mass > _rho ? mass-_rho : mass<0.f ? mass : 0.f; // allow interface cells with mass>rho or mass<0
+      mass = constrain(mass, 0.f, _rho);
+      phi = _rho>0.f ? mass/_rho : 0.5f ; // calculate fill level for next step (only necessary for interface cells)
     } else if (type == CELL_TYPE.GAS || type == CELL_TYPE.INTERFACE_TO_GAS) {
       type = CELL_TYPE.GAS;
       massex = mass; // dump remaining mass into excess mass
       mass = 0.f;
       phi = 0.f;
+      //_rho = 1.f;
+      //_ux = 0.f;
+      //_uy = 0.f;
+      //_Sxx = -cs2;
+      //_Syy = -cs2;
+      //_Sxy = 0.f;
     } else return;
   
     float counter = 0.f; // count (fluid|interface) neighbors
