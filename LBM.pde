@@ -118,11 +118,7 @@ public class LBM {
   void doTimeStep(){
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        gridFlow[i][j].streaming(i, j, this);
-    
-    for(int i=0; i<Nx ;i++)
-      for(int j=0; j<Ny ;j++)
-        gridFlow[i][j].collision(i, j, this);
+        gridFlow[i][j].streamingCollision(i, j, this);
     
     // first update with gi(x,t)
     for(int i=0; i<Nx ;i++)
@@ -151,6 +147,10 @@ public class LBM {
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
             gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), this);
+    
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        gridFlow[i][j].swapMoments(i, j, this);
     
     t++;
   }
