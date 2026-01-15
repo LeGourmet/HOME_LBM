@@ -55,20 +55,26 @@ public class LBM {
   
   public int getColor(int p_x, int p_y, COLOR_TYPE p_colorType) {
     if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return color(0);
+     
+    if (p_colorType == COLOR_TYPE.TYPE) {
+      if(grid[p_x][p_y].type == CELL_TYPE.G) return color(127);
+      if(grid[p_x][p_y].type == CELL_TYPE.I) return color(0,0,125);
+      if(grid[p_x][p_y].type == CELL_TYPE.L) return color(0,0,200);
+      return color(0);
+    }
     
-    if (grid[p_x][p_y].type == CELL_TYPE.SOLID) return color(0);
+    if (grid[p_x][p_y].type == CELL_TYPE.SOLID )return color(0);
+    if (grid[p_x][p_y].type == CELL_TYPE.G )return color(30);
     
     int palette[];
     float val;
     
     if(p_colorType == COLOR_TYPE.PRESSURE){
       palette = new int[]{color(68,1,84), color(59,82,139), color(33,145,140), color(94,201,98), color(253,231,37)};
-      val = constrain(grid[p_x][p_y].getPressure()*0.5f, 0.f, 1.f);
-    }else if(p_colorType == COLOR_TYPE.VELOCITY){
+      val = constrain(grid[p_x][p_y].rho*0.5f, 0.f, 1.f);
+    }else{
       palette = new int[]{color(70,70,219), color(0,255,91), color(0,128,0), color(255,255,0), color(255,96,0), color(107,0,0), color(223,77,77)};
-      val = constrain(sqrt(sq(grid[p_x][p_y].getVelocityX()) + sq(grid[p_x][p_y].getVelocityY()))/cs, 0.f, 1.f);
-    }else {
-      return color(255.f*grid[p_x][p_y].getPhi1(), 255.f*grid[p_x][p_y].getPhi2(), 255.f*grid[p_x][p_y].getPhi3());
+      val = constrain(sqrt(sq(grid[p_x][p_y].ux) + sq(grid[p_x][p_y].uy))/cs, 0.f, 1.f);
     }
       
     float x = val*0.999f*(palette.length-1.f);
@@ -88,28 +94,38 @@ public class LBM {
     if(p_x>=0 || p_x<this.Nx || p_y>=0 || p_y<this.Ny) this.ForceFieldY[p_x][p_y] = p_force;
   }
   
-  public void setCell(int p_x, int p_y, CELL_TYPE p_type, float p_p, float p_ux, float p_uy, float p_phi1, float p_phi2) {
-    if(p_x>=0 || p_x<this.Nx || p_y>=0 || p_y<this.Ny) this.grid[p_x][p_y] = new Cell(p_type, p_p, p_ux, p_uy, p_phi1, p_phi2);
+  public void setCell(int p_x, int p_y, Cell p_cell) {
+    if(p_x>=0 || p_x<this.Nx || p_y>=0 || p_y<this.Ny) this.grid[p_x][p_y] = p_cell;
   }
   
   // ----------------------------------------------------- FUNCTIONS -----------------------------------------------------
+  void init() {
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].init(i, j, this);
+  }
+  
   void doTimeStep(){
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].flowStreaming(i, j, this);
+        grid[i][j].flowStreamingCollision(i, j, this);
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].flowCollision(i, j, this);
-    
-    for(int i=0; i<Nx ;i++)
-      for(int j=0; j<Ny ;j++)
-        grid[i][j].phaseCollision(i, j, this);
-      
-    for(int i=0; i<Nx ;i++)
-      for(int j=0; j<Ny ;j++)
-        grid[i][j].phaseStreaming(i, j, this);
+        grid[i][j].flowSwapMoments(i, j, this);
         
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].surface1(i, j, this);
+    
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].surface2(i, j, this);
+        
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].surface3(i, j, this);
+    
     t++;
   }
 }
