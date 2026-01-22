@@ -4,6 +4,7 @@ public class LBM {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
   private int Nx;
   private int Ny;  
+  private int B;
   private int t;
 
   private float GlobalForceX;
@@ -18,6 +19,7 @@ public class LBM {
   public LBM(int p_Nx, int p_Ny) {
     this.Nx = max(1,p_Nx);
     this.Ny = max(1,p_Ny);
+    this.B = this.Nx*this.Ny;
     this.t  = 0;
     
     this.GlobalForceX = 0.f;
@@ -33,14 +35,14 @@ public class LBM {
     
     this.grid = new Cell[this.Nx][this.Ny];
     
-    this.bubbles = new Bubble[this.Nx*this.Ny];
-    for(int i=0; i<this.Nx*this.Ny ;i++)
-      bubbles[i] = new Bubble();
+    this.bubbles = new Bubble[this.B];
+    for(int id=0; id<this.B ;id++) bubbles[id] = new Bubble();
   }  
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public int getNx() { return this.Nx; }
   public int getNy() { return this.Ny; }
+  public int getB() { return this.B; }
   public int getT() { return this.t; }
   
   public float getForceX(int p_x, int p_y) { 
@@ -59,7 +61,7 @@ public class LBM {
   }
   
   public Bubble getBubble(int p_id) {
-    if(p_id>=(Nx*Ny) || p_id<0) return null; 
+    if(p_id>=this.B || p_id<0) return null; 
     return this.bubbles[p_id];  
   }
   
@@ -125,7 +127,7 @@ public class LBM {
     int currentLabel = 0;
     Stack<Integer> coords = new Stack<>();
     
-    for(int i=0; i<Nx ;i++)
+    for(int i=0; i<Nx ;i++) {
       for(int j=0; j<Ny ;j++) {
         if(grid[i][j].getBubbleId() != -1 || (grid[i][j].getType() != CELL_TYPE.I && grid[i][j].getType() != CELL_TYPE.G)) continue;
         coords.clear();
@@ -149,12 +151,13 @@ public class LBM {
         
         currentLabel++;
       }
+    }
     
     // ----------------------- Bubble Init -----------------------
-    for(int i=0; i<Nx*Ny ;i++) {
-      if(bubbles[i].numberCells==0) continue;
-      bubbles[i].rho = cs2;
-      bubbles[i].volume = bubbles[i].volumeInit;
+    for(int id=0; id<B ;id++) {
+      if(bubbles[id].numberCells==0) continue;
+      bubbles[id].rho = cs2;
+      bubbles[id].volume = bubbles[id].volumeInit;
     }
   }
   
@@ -181,71 +184,41 @@ public class LBM {
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         grid[i][j].surface3(i, j, this);
-    
+        
     // ------------- Bubble Update Id and VolumeInit -------------
-    for(int i=0; i<Nx ;i++)
-      for(int j=0; j<Ny ;j++) {
-        grid[i][j].setBubbleIdPrev(grid[i][j].getBubbleId());
-        grid[i][j].setBubbleId(-1);
-      }
-      
-    Stack<Integer> coords = new Stack<>();
-    IntList labels = new IntList();
+    // => split : idBubble>=0 && TYPE_L
+    // => merge : idBubble<0 && (TYPE_I || TYPE_G)
     
-    // --- split bubbles ---
-    for(int id=0; id<Nx*Ny ;id++){
-      if(bubbles[id].volumeInit == 0.f) continue;
-      
-      int start = labels.size();
-      
-      for(int i=0; i<Nx ;i++)
-        for(int j=0; j<Ny ;j++) {
-          if(grid[i][j].getBubbleId() >= 0 || grid[i][j].getBubbleIdPrev() != id || !(grid[i][j].getType()==CELL_TYPE.I || grid[i][j].getType()==CELL_TYPE.G)) continue;
-            
-          coords.clear();
-          coords.push(j*Nx+i);
-          labels.append(0);
-            
-          while (!coords.empty()) {
-            int coord = coords.pop();
-            int coordX = coord%Nx;
-            int coordY = coord/Nx;
-              
-            int currentLabel = labels.size()-1;
-            labels.increment(currentLabel);
-            grid[coordX][coordY].setBubbleId(currentLabel);
+    
+    for(int i=0; i<Nx ;i++) {
+      for(int j=0; j<Ny ;j++) {
+        int idB = grid[i][j].getBubbleId();
+        if(!(idB>=0 && grid[i][j].getType()==CELL_TYPE.L)) continue; // if(!split) continue;
                 
-            for (int n=1; n<9 ;n++) {
-              int offsetX = mod(coordX+D2Q9_cx[n],Nx);
-              int offsetY = mod(coordY+D2Q9_cy[n],Ny);
-              if(grid[offsetX][offsetY].getBubbleId() < 0 && grid[offsetX][offsetY].getBubbleIdPrev() == id && (grid[offsetX][offsetY].getType() == CELL_TYPE.I || grid[offsetX][offsetY].getType() == CELL_TYPE.G)) coords.push(offsetY*Nx+offsetX);
-            }
-          }
-        }
-      
-      if((labels.size()-start)==0) { bubbles[id].volumeInit=0.f; }
-      else if((labels.size()-start)==1) {  }
-      else {
-        int ttNB = 0;
-        for(int l=start ; l<labels.size() ;l++) ttNB += labels.get(l);
-        for(int l=start ; l<labels.size() ;l++) {
-          // split here
-          // new id (write prev)
-          // vo=V0*NB/ttNB
-          // delete old bubble id (v0=0)
-        }
+        bubbles[idB].numberCells--;
+        if(bubbles[idB].numberCells<=0) bubbles[idB].reset();
+        grid[i][j].setBubbleId(-1);
       }
     }
     
-    for(int i=0; i<Nx ;i++)
-      for(int j=0; j<Ny ;j++)
-        grid[i][j].setBubbleId(-1);
+    for(int id=0; id<B ; id++)
+      if(bubbles[id].numberCells>0) 
+        bubbles[id].deprecated = true;
     
-    // --- merge bubbles ---    
-    for(int i=0; i<Nx ;i++)
+    Stack<Integer> coords = new Stack<>();
+    
+    for(int i=0; i<Nx ;i++) {
       for(int j=0; j<Ny ;j++) {
-        if(!grid[i][j].getBubbleMerge()) continue;  
-        labels.clear();
+        int idN = grid[i][j].getBubbleId(); 
+        CELL_TYPE typeN = grid[i][j].getType();
+        if((idN<0 && !(typeN==CELL_TYPE.I || typeN==CELL_TYPE.G)) || (idN>=0 && !bubbles[idN].deprecated)) continue; // if(mark || Solid || Liquid)
+        
+        int currentId = -1;
+        for(int id=0; id<B ; id++)
+          if(bubbles[id].numberCells==0) 
+            { currentId = id; break; }
+        // if(currentId==-1) ????
+        
         coords.clear();
         coords.push(j*Nx+i);
         
@@ -253,72 +226,32 @@ public class LBM {
           int coord = coords.pop();
           int coordX = coord%Nx;
           int coordY = coord/Nx;
-            
-          grid[coordX][coordY].setBubbleId(-2);
-          grid[coordX][coordY].setBubbleMergeFalse();
+          int idC = grid[coordX][coordY].getBubbleId();
           
-          int id = grid[coordX][coordY].getBubbleIdPrev();
-          if(id >= 0 && !labels.hasValue(id)) labels.append(id);
+          bubbles[currentId].numberCells++;
+          bubbles[currentId].volume += 1.f-grid[coordX][coordY].getPhi();
+          if(idC >= 0) bubbles[currentId].volumeInit += bubbles[idC].volumeInit/float(bubbles[idC].numberCells); 
+          //if(idC >= 0) bubbles[currentId].volumeInit += (1.f-grid[coordX][coordY].getPhi()) * bubbles[idC].rho / cs2;
+          grid[coordX][coordY].setBubbleId(currentId);
             
           for (int n=1; n<9 ;n++) {
             int offsetX = mod(coordX+D2Q9_cx[n],Nx);
             int offsetY = mod(coordY+D2Q9_cy[n],Ny);
-            if(grid[offsetX][offsetY].getBubbleId() != -2 && (grid[offsetX][offsetY].getType() == CELL_TYPE.I || grid[offsetX][offsetY].getType() == CELL_TYPE.G)) coords.push(offsetY*Nx+offsetX);
+            int idO = grid[offsetX][offsetY].getBubbleId();
+            CELL_TYPE typeO = grid[offsetX][offsetY].getType();
+            if((idO<0 && (typeO==CELL_TYPE.I || typeO==CELL_TYPE.G)) || (idO>=0 && bubbles[idO].deprecated)) coords.push(offsetY*Nx+offsetX); // warning, bad if!
           }
         }
         
-        int currentBubbleId = -1;
-        
-        // create bubble
-        if(labels.size() == 0) {
-          for(int id=0; id<Nx*Ny ;id++)
-            if(bubbles[id].volumeInit==0.f) 
-              { currentBubbleId = id; break; }
-
-          for(int x=0; x<Nx ;x++)
-            for(int y=0; y<Ny ;y++)
-              if(grid[x][y].getBubbleId()==-2) 
-                bubbles[currentBubbleId].volumeInit += 1.f-grid[x][y].getPhi();
-        } 
-        
-        // enlarge a bubble
-        else if(labels.size() == 1) {
-          currentBubbleId = labels.get(0);
-        } 
-        
-        // merge bubbles
-        else {
-          currentBubbleId = labels.min();
-          for(int l : labels)
-            if(l != currentBubbleId)
-              bubbles[currentBubbleId].volumeInit += bubbles[l].volumeInit;
-        }
-        
-        // update id
-        for(int x=0; x<Nx ;x++)
-          for(int y=0; y<Ny ;y++)
-            if(grid[x][y].getBubbleId()==-2) 
-              grid[x][y].setBubbleId(currentBubbleId);
+        if (bubbles[currentId].volumeInit==0.f) bubbles[currentId].volumeInit = bubbles[currentId].volume;
+        bubbles[currentId].rho = cs2 * bubbles[currentId].volumeInit/bubbles[currentId].volume;
       }
+    }
     
+    for(int id=0; id<B ; id++)
+      if(bubbles[id].deprecated)
+        bubbles[id].reset();
     
-    // ------------------- Bubble Update Volume ------------------
-    for(int i=0; i<Nx*Ny ;i++) bubbles[i].volume = 0.f;
-    
-    for(int i=0; i<Nx ;i++)
-      for(int j=0; j<Ny ;j++) {
-        int id = grid[i][j].getBubbleId();
-        if(id>=0) bubbles[id].volume += 1.f-grid[i][j].getPhi();
-      }
-    
-    // --------------------- Bubble Update Rho -------------------
-    for(int i=0; i<Nx*Ny ;i++) 
-      if(bubbles[i].volume==0.f) {
-        bubbles[i].rho = 0.f;
-        bubbles[i].volumeInit = 0.f;
-      } else 
-        bubbles[i].rho = cs2 * bubbles[i].volumeInit/bubbles[i].volume;
-      
     t++;
   }
 }

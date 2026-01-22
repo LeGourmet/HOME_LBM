@@ -9,6 +9,8 @@ int SCREEN_ZOOM = 3;
 boolean paused = true;
 COLOR_TYPE colorType = COLOR_TYPE.TYPE;
 
+//int nextFrame=0;
+
 void settings(){
     size(GRID_SIZE_X*SCREEN_ZOOM,GRID_SIZE_Y*SCREEN_ZOOM,P2D);
 }
@@ -51,8 +53,6 @@ void draw(){
   }
   updatePixels();
   
-  if(!paused) simulation.doTimeStep();
-  
   float minP = Float.MAX_VALUE;
   float maxP = Float.MIN_VALUE;
   float minU = Float.MAX_VALUE;
@@ -72,6 +72,19 @@ void draw(){
   text("Frame : "+simulation.getT(),10,30);
   text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
+  
+  /*if(!paused && simulation.getT() == nextFrame) {
+    String name = "./video/image_";
+    int id = nextFrame/10;
+         if(id<10) name += "00000000";
+    else if(id<100) name += "0000000";
+    else if(id<1000) name += "000000";
+    else if(id<10000) name += "00000";
+    save(name+id+".png");
+    nextFrame += 10;
+  }*/
+  
+  if(!paused) simulation.doTimeStep();
 }
 
 void keyPressed(){

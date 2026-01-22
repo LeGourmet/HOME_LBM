@@ -23,9 +23,6 @@ public class Cell {
   private float massex;
   
   private int bubbleId;
-  private int bubbleIdPrev;
-  private boolean bubbleSplit;
-  private boolean bubbleMerge;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
   public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy, float p_phi) {
@@ -54,9 +51,6 @@ public class Cell {
     this.massex = 0.f;
     
     this.bubbleId = -1;
-    this.bubbleIdPrev = -1;
-    this.bubbleSplit = false;
-    this.bubbleMerge = false;
   } 
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
@@ -71,9 +65,6 @@ public class Cell {
   public float getMass() { return this.mass; }
   public float getMassex() { return this.massex; }
   public int getBubbleId() { return this.bubbleId; }
-  public int getBubbleIdPrev() { return this.bubbleIdPrev; }
-  public boolean getBubbleSplit() { return this.bubbleSplit; }
-  public boolean getBubbleMerge() { return this.bubbleMerge; }
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setType(CELL_TYPE p_type) { this.type = p_type; }
@@ -81,9 +72,6 @@ public class Cell {
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   public void setBubbleId(int p_bubbleId) { this.bubbleId = p_bubbleId; }
-  public void setBubbleIdPrev(int p_bubbleId) { this.bubbleIdPrev = p_bubbleId; }
-  public void setBubbleSplitFalse() { this.bubbleSplit = false; }
-  public void setBubbleMergeFalse() { this.bubbleMerge = false; }
   
   // -------------------------------------------------- INIT ---------------------------------------------------  
   public void init(int p_x, int p_y, LBM p_simulation) {
@@ -114,6 +102,7 @@ public class Cell {
       Syy = (uy*uy - cs2);
       Sxy = (ux*uy);  // Syx = Sxy; // symetric tensor
       
+      phi = 0.5f;
       mass = phi * rho;
     }
   }
@@ -199,11 +188,11 @@ public class Cell {
       float rho_k = 1.f;
       float def_6_sigma_k = 2.f * ca / cs2;
       
-      if (bubbleId >= 0) {
+      /*if (bubbleId >= 0) {
         rho_k = p_simulation.getBubble(bubbleId).rho;                                                          // for bubble pressure
         if (p_simulation.getBubble(bubbleId).volumeInit > 30000.f) def_6_sigma_k = 1e-6f;                      // for air layer surface tension (174x174)
         if ((def_6_sigma_k>1e-3f) && (p_simulation.getBubble(bubbleId).volume < 16.f)) def_6_sigma_k = 2e-4f;  // for small bubble surface tension (4x4)
-      }
+      }*/
       
       float rho_laplace = def_6_sigma_k * 1.f;
       //float rho_laplace = def_6_sigma_k *calculate_curvature(phiM);
@@ -246,7 +235,7 @@ public class Cell {
     for(int i=0; i<9 ;i++)
       fin[i] += D2Q9_w[i];
     
-    float rhoT =  fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];  // sum(fi);
+    float rhoT = fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];  // sum(fi);
     float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) / rhoT + 0.5f * fx;         // sum(fi * cix);
     float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) / rhoT + 0.5f * fy;         // sum(fi * ciy);
     float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8]) / rhoT - cs2;               // sum(fi * (cix*cix-cs2));
@@ -269,14 +258,14 @@ public class Cell {
     }
     
     // LES model for neighborhood of bubbles (add eddy viscosity)
-    for (int a=-3; a<3 ;a++)
+    /*for (int a=-3; a<3 ;a++)
       for (int b=-3; b<3 ;b++) {
         int idM = p_simulation.getCell(mod(p_x+a,p_simulation.getNx()), mod(p_y+b,p_simulation.getNy())).getBubbleId();
         if ((idM>=0) && (p_simulation.getBubble(idM).volume < 30000.f)) {
           tau = (nu + 4.f * sqrt(sq(SxxT) + sq(SyyT) + 2.f*sq(SxyT))) / cs2 + 0.5f;
           break;
         }
-      }
+      }*/
     
     // ---------------------------------- COLLISION ----------------------------------
     float uTNorm = sqrt(sq(uxT)+sq(uyT));
@@ -353,12 +342,8 @@ public class Cell {
         int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
 
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if(typeN == CELL_TYPE.L) {
+        if(typeN == CELL_TYPE.L || typeN == CELL_TYPE.IL)
           p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.I);
-          bubbleMerge = true;
-        } else if(typeN == CELL_TYPE.IL) {
-          p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.I);
-        }
       }
     }
   }
@@ -371,10 +356,7 @@ public class Cell {
     float massexn = 0.f;
     
     if (type==CELL_TYPE.L || type==CELL_TYPE.IL) {
-      if (type==CELL_TYPE.IL) {
-        type = CELL_TYPE.L;
-        bubbleSplit = true;  
-      }
+      if (type==CELL_TYPE.IL) type = CELL_TYPE.L;
       massexn = massn - rhon; // dump mass-rho difference into excess mass
       massn = rhon; // fluid cell mass has to equal rho
       phi = 1.f;
