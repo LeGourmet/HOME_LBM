@@ -1,3 +1,5 @@
+import java.util.Stack;
+
 LBM simulation;
 
 int GRID_SIZE_X = 200;
@@ -21,7 +23,9 @@ void setup(){
     for(int j=0; j<simulation.getNy() ;j++){
       if (j==simulation.getNy()-1 || (sqrt(sq(i-100)+sq(j-100))<30)) {
         simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f));
-      } else if(i>30 && i<170 && j<50 && j>10) {
+      } 
+      //else if(i%10==0) {
+      else if(i>30 && i<170 && j<50 && j>10) {
         simulation.setCell(i, j, new Cell(CELL_TYPE.L, 1.f, 0.f, 0.f, 1.f));
       } else {
         simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
@@ -64,7 +68,7 @@ void draw(){
     }
   }
   
-  text("Display : "+(colorType==COLOR_TYPE.PRESSURE ? "Density" : (colorType==COLOR_TYPE.VELOCITY ? "Velocity - Magnitude" : "Type")),10,15);
+  text("Display : "+(colorType==COLOR_TYPE.PRESSURE ? "Density" : (colorType==COLOR_TYPE.VELOCITY ? "Velocity - Magnitude" : (colorType==COLOR_TYPE.TYPE ? "Type" : "Bubbles"))),10,15);
   text("Frame : "+simulation.getT(),10,30);
   text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
@@ -75,5 +79,4 @@ void keyPressed(){
   if(key==TAB) colorType = COLOR_TYPE.values()[(colorType.ordinal() + 1) % COLOR_TYPE.values().length];
 }
 
-void mousePressed(){
-}
+void mousePressed(){}

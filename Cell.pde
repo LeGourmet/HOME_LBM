@@ -22,14 +22,20 @@ public class Cell {
   private float mass;
   private float massex;
   
+  private int bubbleId;
+  private int bubbleIdPrev;
+  private boolean bubbleSplit;
+  private boolean bubbleMerge;
+  
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
   public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy, float p_phi) {
+    this.rho = max(0.f, p_rho);
+    this.ux = p_ux;
+    this.uy = p_uy;
+    
     if(p_type == CELL_TYPE.SOLID) {
       this.type = CELL_TYPE.SOLID;
       this.phi = 0.f;
-      this.rho = p_rho;
-      this.ux = p_ux;
-      this.uy = p_uy;
     } else {
       this.phi = (p_phi<0.5f) ? 0.f : 1.f;
       if(this.phi == 0.f){
@@ -37,12 +43,7 @@ public class Cell {
         this.rho = 1.f;
         this.ux = 0.f;
         this.uy = 0.f;
-      } else {
-        this.type = CELL_TYPE.L;
-        this.rho = p_rho;
-        this.ux = p_ux;
-        this.uy = p_uy;
-      }
+      } else this.type = CELL_TYPE.L;
     }
     
     this.Sxx = (ux*ux - cs2);
@@ -51,6 +52,11 @@ public class Cell {
     
     this.mass = phi * rho;
     this.massex = 0.f;
+    
+    this.bubbleId = -1;
+    this.bubbleIdPrev = -1;
+    this.bubbleSplit = false;
+    this.bubbleMerge = false;
   } 
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
@@ -64,12 +70,20 @@ public class Cell {
   public float getPhi() { return this.phi; }
   public float getMass() { return this.mass; }
   public float getMassex() { return this.massex; }
+  public int getBubbleId() { return this.bubbleId; }
+  public int getBubbleIdPrev() { return this.bubbleIdPrev; }
+  public boolean getBubbleSplit() { return this.bubbleSplit; }
+  public boolean getBubbleMerge() { return this.bubbleMerge; }
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setType(CELL_TYPE p_type) { this.type = p_type; }
   public void setDensity(float p_rho) { this.rho = max(0.f,p_rho); }
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
+  public void setBubbleId(int p_bubbleId) { this.bubbleId = p_bubbleId; }
+  public void setBubbleIdPrev(int p_bubbleId) { this.bubbleIdPrev = p_bubbleId; }
+  public void setBubbleSplitFalse() { this.bubbleSplit = false; }
+  public void setBubbleMergeFalse() { this.bubbleMerge = false; }
   
   // -------------------------------------------------- INIT ---------------------------------------------------  
   public void init(int p_x, int p_y, LBM p_simulation) {
@@ -122,7 +136,7 @@ public class Cell {
   public void flowStreamingCollision(int p_x, int p_y, LBM p_simulation) {
     if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM || type==CELL_TYPE.G ) return;
      
-    float tau = 0.5f + nu/cs2;
+    float tau = nu/cs2 + 0.5f;
      
     // external forces = body forces : Newton second law of motion : F = M*G = M*A => g = A
     float fx = p_simulation.getForceX(p_x, p_y);
@@ -160,22 +174,20 @@ public class Cell {
       fout[i] = computeFi(i, rho, ux, uy, Sxx, Syy, Sxy);
     }
     
-    // ---------------------------------- SURFACE 0 ----------------------------------    
-    float massn = mass;
-    
+    // ---------------------------------- SURFACE 0 ----------------------------------        
     for (int i=1; i<9 ;i++){
       int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
       int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
-      massn += p_simulation.getCell(idNx,idNy).getMassex();
+      mass += p_simulation.getCell(idNx,idNy).getMassex();
     }
     
     if (type == CELL_TYPE.L) {
       for (int i=1; i<9 ;i++)
-        massn += fin[i] - fout[i]; // neighbor is fluid or interface cell
+        mass += fin[i] - fout[i]; // neighbor is fluid or interface cell
     }
     else if (type == CELL_TYPE.I) {
       float[] phiM = new float[9]; // cache fill level of neighbor lattice points
-      phiM[0] = rho>0.f ? constrain(massn/rho, 0.f, 1.f) : 0.5f; // don't load phi[n] from memory, instead recalculate it with mass corrected by excess mass
+      phiM[0] = rho>0.f ? constrain(mass/rho, 0.f, 1.f) : 0.5f; // don't load phi[n] from memory, instead recalculate it with mass corrected by excess mass
       
       // cache fill level of neighbor lattice points
       for (int i=1; i<9 ;i++){
@@ -184,16 +196,17 @@ public class Cell {
         phiM[i] = p_simulation.getCell(idNx,idNy).getPhi();
       }
       
-      float def_6_sigma_k = 2.f * ca / cs2;
-      float rho_laplace = def_6_sigma_k * 1.f; //*calculate_curvature(phiM);
       float rho_k = 1.f;
+      float def_6_sigma_k = 2.f * ca / cs2;
       
-      /*long bubbleId = bubbleTag[n];
-      if (bubbleId >= 0ll) {
-        rho_k = bubbleInfo[(ulong)(bubbleId)];                                    // for bubble pressure
-        if (bubbleInfo[2ul*def_bubbles_N + (ulong)(bubbleId)] > 5000000.f) def_6_sigma_k = 1e-6f;          // for air layer surface tension
-        if ((def_6_sigma_k>1e-3f) && (bubbleInfo[def_bubbles_N + (ulong)(bubbleId)] < 64.f)) def_6_sigma_k = 2e-4f;  // for small bubble surface tension
-      }*/
+      if (bubbleId >= 0) {
+        rho_k = p_simulation.getBubble(bubbleId).rho;                                                          // for bubble pressure
+        if (p_simulation.getBubble(bubbleId).volumeInit > 30000.f) def_6_sigma_k = 1e-6f;                      // for air layer surface tension (174x174)
+        if ((def_6_sigma_k>1e-3f) && (p_simulation.getBubble(bubbleId).volume < 16.f)) def_6_sigma_k = 2e-4f;  // for small bubble surface tension (4x4)
+      }
+      
+      float rho_laplace = def_6_sigma_k * 1.f;
+      //float rho_laplace = def_6_sigma_k *calculate_curvature(phiM);
     
       // limit for stability purpose (simulation can't exceed mach 1)
       float tmpUx = ux + 0.5f * fx;
@@ -215,8 +228,8 @@ public class Cell {
         int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
         
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if (typeN == CELL_TYPE.L) massn += fin[i] - fout[j];
-        else if (typeN == CELL_TYPE.I || typeN == CELL_TYPE.IL || typeN == CELL_TYPE.IG || typeN == CELL_TYPE.GI) massn += 0.5f * (phiM[j] + phiM[0]) * (fin[i] - fout[j]);
+        if (typeN == CELL_TYPE.L) mass += fin[i] - fout[j];
+        else if (typeN == CELL_TYPE.I || typeN == CELL_TYPE.IL || typeN == CELL_TYPE.IG || typeN == CELL_TYPE.GI) mass += 0.5f * (phiM[j] + phiM[0]) * (fin[i] - fout[j]);
       }
     
       for (int i=1; i<9 ;i++) {
@@ -228,7 +241,6 @@ public class Cell {
         if (typeN == CELL_TYPE.G) fin[i] = feq[j] - fout[j] + feq[i];
       }
     }
-    mass = massn;
     
     // ---------------------------------- RECONSTRUCTION ----------------------------------
     for(int i=0; i<9 ;i++)
@@ -237,8 +249,8 @@ public class Cell {
     float rhoT =  fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];  // sum(fi);
     float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) / rhoT + 0.5f * fx;         // sum(fi * cix);
     float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) / rhoT + 0.5f * fy;         // sum(fi * ciy);
-    float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8] + cs2) / rhoT - cs2;         // sum(fi * (cix*cix-cs2));
-    float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7] + cs2) / rhoT - cs2;         // sum(fi * (ciy*ciy-cs2));
+    float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8]) / rhoT - cs2;               // sum(fi * (cix*cix-cs2));
+    float SyyT = (fin[3] + fin[4] + fin[5] + fin[6] + fin[8] + fin[7]) / rhoT - cs2;               // sum(fi * (ciy*ciy-cs2));
     float SxyT = (fin[5] + fin[6] - fin[7] - fin[8]) / rhoT;                                       // sum(fi * (cix*ciy));
     
     // ---------------------------------- SURFACE TAG UPDATE ----------------------------------
@@ -256,20 +268,15 @@ public class Cell {
       else if (mass < 0.f || TYPE_NO_L) type = CELL_TYPE.IG; // set flag interface->gas
     }
     
-    /*uint x, y, z;
-    coordinates(n, &x, &y, &z);
-    
     // LES model for neighborhood of bubbles (add eddy viscosity)
     for (int a=-3; a<3 ;a++)
-      for (int b=-3; b<3 ;b++)
-        for (int c=-3; c<3 ;c++) {
-          ulong m = index(((int)(x)+a+(int)(def_Nx))%def_Nx, ((int)(y)+b+(int)(def_Ny))%def_Ny, ((int)(z)+c+(int)(def_Nz))%def_Nz);
-          long bubbleId = bubbleTag[m];
-          if ((bubbleId>=0) && (bubbleInfo[def_bubbles_N + (ulong)(bubbleId)] < 5000000.f)) {
-            tau = (_nu + 4.f * sqrt(sq(_Sxx) + sq(_Syy) + sq(_Szz) + 2.f * (sq(_Sxy) + sq(_Sxz) + sq(_Syz)))) / def_cs2 + 0.5f;
-            break;
-          }
-        }*/
+      for (int b=-3; b<3 ;b++) {
+        int idM = p_simulation.getCell(mod(p_x+a,p_simulation.getNx()), mod(p_y+b,p_simulation.getNy())).getBubbleId();
+        if ((idM>=0) && (p_simulation.getBubble(idM).volume < 30000.f)) {
+          tau = (nu + 4.f * sqrt(sq(SxxT) + sq(SyyT) + 2.f*sq(SxyT))) / cs2 + 0.5f;
+          break;
+        }
+      }
     
     // ---------------------------------- COLLISION ----------------------------------
     float uTNorm = sqrt(sq(uxT)+sq(uyT));
@@ -337,8 +344,8 @@ public class Cell {
       rho = rhon;
       ux = uxn;
       uy = uyn;
-      Sxx = (feq[1] + feq[2] + feq[5] + feq[6] + feq[7] + feq[8] + cs2) / rhon - cs2;
-      Syy = (feq[3] + feq[4] + feq[5] + feq[6] + feq[8] + feq[7] + cs2) / rhon - cs2;
+      Sxx = (feq[1] + feq[2] + feq[5] + feq[6] + feq[7] + feq[8]) / rhon - cs2;
+      Syy = (feq[3] + feq[4] + feq[5] + feq[6] + feq[8] + feq[7]) / rhon - cs2;
       Sxy = (feq[5] + feq[6] - feq[7] - feq[8]) / rhon;
     } else if(type == CELL_TYPE.IG) {
       for(int i=1; i<9 ;i++){
@@ -347,7 +354,8 @@ public class Cell {
 
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
         if(typeN == CELL_TYPE.L) {
-          p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.I); // + bubble merge
+          p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.I);
+          bubbleMerge = true;
         } else if(typeN == CELL_TYPE.IL) {
           p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.I);
         }
@@ -361,23 +369,21 @@ public class Cell {
     float rhon = rho;
     float massn = mass;
     float massexn = 0.f;
-    float phin = 0.f;
     
     if (type==CELL_TYPE.L || type==CELL_TYPE.IL) {
-      if (type==CELL_TYPE.IL) type = CELL_TYPE.L; // + bubble split
+      if (type==CELL_TYPE.IL) {
+        type = CELL_TYPE.L;
+        bubbleSplit = true;  
+      }
       massexn = massn - rhon; // dump mass-rho difference into excess mass
       massn = rhon; // fluid cell mass has to equal rho
-      phin = 1.f;
-    
-      // use previous tag to record for the bubble volume change computation
-      //mlflow[0].previous_tag[curind] = mlflow[0].tag_matrix[curind];
-      //mlflow[0].tag_matrix[curind] = -1;
+      phi = 1.f;
     }
     else if (type==CELL_TYPE.I || type==CELL_TYPE.GI) {
       if (type==CELL_TYPE.GI)  type = CELL_TYPE.I;
       massexn = massn > rhon ? massn - rhon : massn < 0.f ? massn : 0.f; // allow interface cells with mass>rho or mass<0
       massn = constrain(massn, 0.f, rhon);
-      phin = rhon > 0.f ? massn / rhon : 0.5f; // calculate fill level for next step (only necessary for interface cells)
+      phi = rhon > 0.f ? massn / rhon : 0.5f; // calculate fill level for next step (only necessary for interface cells)
     }
     else if (type==CELL_TYPE.G || type==CELL_TYPE.IG) {
       if (type==CELL_TYPE.IG) {
@@ -388,7 +394,7 @@ public class Cell {
       }
       massexn = massn; // dump remaining mass into excess mass
       massn = 0.f;
-      phin = 0.f;
+      phi = 0.f;
     }
     
     int counter = 0; // count (fluid|interface) neighbors
@@ -402,6 +408,5 @@ public class Cell {
     
     mass = massn + ((counter > 0) ? 0.f : massexn); // if excess mass can't be distributed to neighboring interface or fluid cells, add it to local mass (ensure mass conservation)
     massex = ((counter > 0) ? massexn / (float)counter : 0.f); // divide excess mass up for all interface or fluid neighbors
-    phi = phin;
   }
 }

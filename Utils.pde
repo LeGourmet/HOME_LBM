@@ -16,7 +16,6 @@ final int[] D2Q9_cy = { 0, 0, 0, 1,-1, 1,-1,-1, 1 };
 int mod(int x, int n) { return (x+n)%n; }
 float cb(float x) { return x*x*x; }
 float cbrt(float x) { return x<0.f ? -pow(-x, 1.f/3.f) : pow(x, 1.f/3.f); }
-float fdim(float x, float y) { float d = x - y; return d > 0 ? d : 0; }
 float copysign(float x, float y) { return abs(x) * (y < 0 ? -1 : 1); }
 
 boolean inSphere(int x, int y, int r, int cx, int cy){
@@ -62,14 +61,14 @@ float plic_cube(float V0, PVector n) { // unit cube - plane intersection: volume
   float ax=abs(n.x), ay=abs(n.y), az=abs(n.z), V=0.5f-abs(V0-0.5f), l=ax+ay+az; // eliminate symmetry cases, normalize n using L1 norm
   float n1 = min(min(ax, ay), az)/l;
   float n3 = max(max(ax, ay), az)/l;
-  float n2 = fdim(1.f, n1+n3); // ensure n2>=0
+  float n2 = max(0.f, 1.f-(n1+n3)); // ensure n2>=0
   float d = plic_cube_reduced(V, n1, n2, n3); // calculate PLIC with reduced symmetry
   return l*copysign(0.5f-d, V0-0.5f); // rescale result and apply symmetry for V0>0.5
 }
 
 float calculate_curvature(float[] phij) { // calculate surface curvature, always use D3Q27 stencil here, source: https://doi.org/10.3390/computation10020021
   PVector by = new PVector( 2.f*(phij[2]-phij[1])+phij[6]-phij[5]+phij[8]-phij[7], 2.f*(phij[4]-phij[3])+phij[6]-phij[5]+phij[7]-phij[8], 0.f).normalize(); // new coordinate system: bz is normal to surface, bx and by are tangent to surface
-  PVector bx = by.cross(new PVector(0.f, 0.f, 1.f)).normalize(); // normalize() is necessary here because bz and rn are not perpendicular
+  PVector bx = by.cross(new PVector(0.f, 0.f, 1.f));
   int number = 0; // number of neighboring interface points
   PVector[] p = new PVector[6]; // number of neighboring interface points is less or equal than than 8 minus 1 gas and minus 1 fluid point = 6
   float center_offset = plic_cube(phij[0], by); // calculate z-offset PLIC of center point only once
@@ -90,7 +89,6 @@ float calculate_curvature(float[] phij) { // calculate surface curvature, always
   }
   M[2] = M[1]; // use symmetry of matrix to save arithmetic operations
   lu_solve(M, r, b, 2, min(2, number)); // cannot do loop unrolling here -> slower -> extra if-else to avoid slowdown
-  float A=r[0], H=r[1];
-  float K = 2.f*A*cb(1.f/sqrt(H*H+1.f)); // mean curvature of Monge patch (x, f(x)), note that curvature definition in 2D is different than 3D (additional factor 2)
+  float K = 2.f*r[0]/cb(sqrt(sq(r[1])+1.f)); // mean curvature of Monge patch (x, f(x)), note that curvature definition in 2D is different than 3D (additional factor 2)
   return constrain(K, -1.f, 1.f); // prevent extreme pressures in the case of almost degenerate matrices
 }
