@@ -138,6 +138,8 @@ public class LBM {
             int coordX = coord%Nx;
             int coordY = coord/Nx;
             
+            if(grid[coordX][coordY].getBubbleId() != -1) continue;
+            
             grid[coordX][coordY].bubbleId = currentLabel;
             bubbles[currentLabel].numberCells++;
             bubbles[currentLabel].volumeInit += 1.f-grid[coordX][coordY].getPhi();
@@ -148,6 +150,8 @@ public class LBM {
               if(grid[offsetX][offsetY].getBubbleId() == -1 && (grid[offsetX][offsetY].getType() == CELL_TYPE.I || grid[offsetX][offsetY].getType() == CELL_TYPE.G)) coords.push(offsetY*Nx+offsetX);
             }
         }
+        
+        println("Bubble :", currentLabel, " with", bubbles[currentLabel].numberCells, " cells, volume :", bubbles[currentLabel].volumeInit);
         
         currentLabel++;
       }
@@ -216,7 +220,7 @@ public class LBM {
         int currentId = -1;
         for(int id=0; id<B ; id++)
           if(bubbles[id].numberCells==0) 
-            { currentId = id; break; }
+            { currentId=id; break; }
         // if(currentId==-1) ????
         
         coords.clear();
@@ -227,6 +231,8 @@ public class LBM {
           int coordX = coord%Nx;
           int coordY = coord/Nx;
           int idC = grid[coordX][coordY].getBubbleId();
+          
+          if(idC>=0 && !bubbles[idC].deprecated) continue; 
           
           bubbles[currentId].numberCells++;
           bubbles[currentId].volume += 1.f-grid[coordX][coordY].getPhi();

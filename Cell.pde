@@ -188,11 +188,11 @@ public class Cell {
       float rho_k = 1.f;
       float def_6_sigma_k = 2.f * ca / cs2;
       
-      /*if (bubbleId >= 0) {
+      if (bubbleId >= 0) {
         rho_k = p_simulation.getBubble(bubbleId).rho;                                                          // for bubble pressure
         if (p_simulation.getBubble(bubbleId).volumeInit > 30000.f) def_6_sigma_k = 1e-6f;                      // for air layer surface tension (174x174)
         if ((def_6_sigma_k>1e-3f) && (p_simulation.getBubble(bubbleId).volume < 16.f)) def_6_sigma_k = 2e-4f;  // for small bubble surface tension (4x4)
-      }*/
+      }
       
       float rho_laplace = def_6_sigma_k * 1.f;
       //float rho_laplace = def_6_sigma_k *calculate_curvature(phiM);
@@ -258,14 +258,14 @@ public class Cell {
     }
     
     // LES model for neighborhood of bubbles (add eddy viscosity)
-    /*for (int a=-3; a<3 ;a++)
+    for (int a=-3; a<3 ;a++)
       for (int b=-3; b<3 ;b++) {
         int idM = p_simulation.getCell(mod(p_x+a,p_simulation.getNx()), mod(p_y+b,p_simulation.getNy())).getBubbleId();
         if ((idM>=0) && (p_simulation.getBubble(idM).volume < 30000.f)) {
           tau = (nu + 4.f * sqrt(sq(SxxT) + sq(SyyT) + 2.f*sq(SxyT))) / cs2 + 0.5f;
           break;
         }
-      }*/
+      }
     
     // ---------------------------------- COLLISION ----------------------------------
     float uTNorm = sqrt(sq(uxT)+sq(uyT));
