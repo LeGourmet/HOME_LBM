@@ -151,7 +151,7 @@ public class LBM {
             }
         }
         
-        println("Bubble :", currentLabel, " with", bubbles[currentLabel].numberCells, " cells, volume :", bubbles[currentLabel].volumeInit);
+        //println("Bubble :", currentLabel, " with", bubbles[currentLabel].numberCells, " cells, volume :", bubbles[currentLabel].volumeInit);
         
         currentLabel++;
       }
@@ -190,9 +190,6 @@ public class LBM {
         grid[i][j].surface3(i, j, this);
         
     // ------------- Bubble Update Id and VolumeInit -------------
-    // => split : idBubble>=0 && TYPE_L
-    // => merge : idBubble<0 && (TYPE_I || TYPE_G)
-    
     
     for(int i=0; i<Nx ;i++) {
       for(int j=0; j<Ny ;j++) {
@@ -210,7 +207,7 @@ public class LBM {
         bubbles[id].deprecated = true;
     
     Stack<Integer> coords = new Stack<>();
-    
+        
     for(int i=0; i<Nx ;i++) {
       for(int j=0; j<Ny ;j++) {
         int idN = grid[i][j].getBubbleId(); 
@@ -251,6 +248,7 @@ public class LBM {
         
         if (bubbles[currentId].volumeInit==0.f) bubbles[currentId].volumeInit = bubbles[currentId].volume;
         bubbles[currentId].rho = cs2 * bubbles[currentId].volumeInit/bubbles[currentId].volume;
+        println("bubble " + currentId + ", rho="+bubbles[currentId].rho + ", volumeInit=" + bubbles[currentId].volumeInit + ", volume=" + bubbles[currentId].volume);
       }
     }
     

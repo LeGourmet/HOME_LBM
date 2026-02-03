@@ -182,7 +182,7 @@ public class Cell {
       for (int i=1; i<9 ;i++){
         int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
         int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
-        phiM[i] = p_simulation.getCell(idNx,idNy).getPhi();
+        phiM[i] = (p_simulation.getCell(idNx,idNy).getType()==CELL_TYPE.SOLID) ? 1.f : p_simulation.getCell(idNx,idNy).getPhi();
       }
       
       float rho_k = 1.f;
@@ -194,8 +194,7 @@ public class Cell {
         if ((def_6_sigma_k>1e-3f) && (p_simulation.getBubble(bubbleId).volume < 16.f)) def_6_sigma_k = 2e-4f;  // for small bubble surface tension (4x4)
       }
       
-      float rho_laplace = def_6_sigma_k * 1.f;
-      //float rho_laplace = def_6_sigma_k *calculate_curvature(phiM);
+      float rho_laplace = (ca==0.f) ? 0.f :  def_6_sigma_k * calculate_curvature(phiM);
     
       // limit for stability purpose (simulation can't exceed mach 1)
       float tmpUx = ux + 0.5f * fx;
@@ -261,7 +260,8 @@ public class Cell {
     for (int a=-3; a<3 ;a++)
       for (int b=-3; b<3 ;b++) {
         int idM = p_simulation.getCell(mod(p_x+a,p_simulation.getNx()), mod(p_y+b,p_simulation.getNy())).getBubbleId();
-        if ((idM>=0) && (p_simulation.getBubble(idM).volume < 30000.f)) {
+        //if ((idM>=0) && (p_simulation.getBubble(idM).volume < 30000.f)) {
+        if (idM>=0) {
           tau = (nu + 4.f * sqrt(sq(SxxT) + sq(SyyT) + 2.f*sq(SxyT))) / cs2 + 0.5f;
           break;
         }

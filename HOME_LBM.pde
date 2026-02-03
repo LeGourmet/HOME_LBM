@@ -27,7 +27,8 @@ void setup(){
         simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f));
       } 
       //else if(i%10==0) {
-      else if(i>30 && i<170 && j<50 && j>10) {
+      //else if(i>30 && i<170 && j<50 && j>10) {
+      else if(j<50 && j>10) {
         simulation.setCell(i, j, new Cell(CELL_TYPE.L, 1.f, 0.f, 0.f, 1.f));
       } else {
         simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
