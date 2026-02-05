@@ -16,7 +16,7 @@ public class CellFlow {
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
   public CellFlow(float p_p, float p_ux, float p_uy) {
-    this.p = p_p;
+    this.p = max(p_p,0.f);
     this.ux = p_ux;
     this.uy = p_uy;
     this.Sxx = (p_ux*p_ux - cs2);
@@ -48,26 +48,23 @@ public class CellFlow {
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   
   // -------------------------------------------------- FUNCTIONS VBDFs --------------------------------------------------    
-  // DDF shifting : fi_eq_shift = fi_eq-wi 
   private float computeFiEq(int p_i, float p_p, float p_ux, float p_uy) {
     return D2Q9_w[p_i] * (p_p + (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 + 0.5f*sq(D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs4 - 0.5f*(p_ux*p_ux + p_uy*p_uy)/cs2 - 1.f);
   }
   
-  // DDF shifting : fi_shift = fi-wi 
   private float computeFi(int p_i, float p_p, float p_ux, float p_uy, float p_Sxx, float p_Syy, float p_Sxy) {
     return D2Q9_w[p_i] * (p_p +
                           (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
                           0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-cs2) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-cs2))/cs4 +
                           0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*cs2) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
-                                 (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6 
+                                 (D2Q9_cy[p_i]*D2Q9_cy[p_i]*D2Q9_cx[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_uy*p_uy*p_ux))/cs6
                           - 1.f);
   }
   
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
   // // DDF shifting : p = sum(fi)+1 
   public void streamingCollision(int p_x, int p_y, LBM p_simulation) {
-    CELL_TYPE type = p_simulation.getType(p_x, p_y);
-    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
+    if(p_simulation.getType(p_x, p_y)==CELL_TYPE.SOLID || p_simulation.isEQ(p_x, p_y)) return;
     
     float phi = simulation.getPhi(p_x, p_y);
     
@@ -123,6 +120,7 @@ public class CellFlow {
       int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
 
       CELL_TYPE typeN = p_simulation.getType(idNx,idNy);
+      boolean eqN = p_simulation.isEQ(idNx, idNy); 
       float pN = p_simulation.getPressure(idNx,idNy);
       float uxN = p_simulation.getVelocityX(idNx,idNy);
       float uyN = p_simulation.getVelocityY(idNx,idNy);
@@ -132,13 +130,13 @@ public class CellFlow {
 
       if(typeN==CELL_TYPE.SOLID)
         fin[i] = computeFi(i, p, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
-      else if(typeN==CELL_TYPE.EQUILIBRIUM)
+      else if(eqN)
         fin[i] = computeFiEq(i, pN, uxN, uyN);
       else
         fin[i] = computeFi(i, pN, uxN, uyN, SxxN, SyyN, SxyN);
     }
     
-    // ---------------------------------- RECONSTRUCTION ----------------------------------
+     // ---------------------------------- RECONSTRUCTION ----------------------------------
     float pT   =  1.f + fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];  // 1 + sum(fi);
     float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) + 0.5f * fx;                      //     sum(fi * cix);
     float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) + 0.5f * fy;                      //     sum(fi * ciy);
@@ -153,7 +151,8 @@ public class CellFlow {
       uyT *= cs/uTNorm;
     }
     
-    _p = pT;
+    // compute moment at time t+1
+    _p = pT; 
     _ux = uxT + 0.5f*fx; // (Guo forcing, Krueger p.233f)
     _uy = uyT + 0.5f*fy; // (Guo forcing, Krueger p.233f)
     _Sxx = (tau-1.f)/(2.f*tau)*(SxxT-SyyT+uyT*uyT+fx*uxT-fy*uyT) + (tau+1.f)/(2.f*tau)*uxT*uxT + fx*uxT;

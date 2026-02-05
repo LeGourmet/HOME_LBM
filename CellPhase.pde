@@ -24,8 +24,8 @@ public class CellPhase {
   }
   
   // -------------------------------------------------- FUNCTIONS PHASE -------------------------------------------------- 
-  public void collision(int p_x, int p_y, int p_scale, CELL_TYPE p_type, float p_ux, float p_uy, LBM p_simulation){
-    if(p_type==CELL_TYPE.SOLID || p_type==CELL_TYPE.EQUILIBRIUM) return;
+  public void collision(int p_x, int p_y, int p_scale, CELL_TYPE p_type, boolean p_eq, float p_ux, float p_uy, LBM p_simulation){
+    if(p_type==CELL_TYPE.SOLID || p_eq) return;
     
     float mo = 1.f/( (1.f-phi)/mo_air + phi/mo_fluid );
     float tau = 0.5f + mo/cs2;
@@ -125,8 +125,8 @@ public class CellPhase {
     }
   }
   
-  public void streaming(int p_x, int p_y, int p_scale, CELL_TYPE p_type, LBM p_simulation){
-    if(p_type==CELL_TYPE.SOLID || p_type==CELL_TYPE.EQUILIBRIUM) return;
+  public void streaming(int p_x, int p_y, int p_scale, CELL_TYPE p_type, boolean p_eq, LBM p_simulation){
+    if(p_type==CELL_TYPE.SOLID || p_eq) return;
     
     phi = 0.f;
     

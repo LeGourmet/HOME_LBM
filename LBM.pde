@@ -1,4 +1,4 @@
-public enum CELL_TYPE { SOLID, FLUID, EQUILIBRIUM };
+public enum CELL_TYPE { SOLID, LIQUID, INTERFACE, GAS };
 public enum COLOR_TYPE { PRESSURE, VELOCITY, TYPE };
 
 public class LBM {
@@ -13,6 +13,7 @@ public class LBM {
   private float ForceFieldY[][];
   
   private CELL_TYPE gridType[][];
+  private boolean gridEq[][];
   private CellFlow gridFlow[][];
   private CellPhase gridPhase[][];
   
@@ -36,6 +37,7 @@ public class LBM {
     }
     
     this.gridType = new CELL_TYPE[this.Nx][this.Ny];
+    this.gridEq = new boolean[this.Nx][this.Ny];
     this.gridFlow = new CellFlow[this.Nx][this.Ny];
     this.gridPhase = new CellPhase[this.Nx*LBM.PhaseScale][this.Ny*LBM.PhaseScale];
   }  
@@ -47,6 +49,7 @@ public class LBM {
   public float getForceX(int p_x, int p_y) { return this.GlobalForceX+this.ForceFieldX[p_x][p_y]; }
   public float getForceY(int p_x, int p_y) { return this.GlobalForceY+this.ForceFieldY[p_x][p_y]; }
   public CELL_TYPE getType(int p_x, int p_y) { return this.gridType[p_x][p_y]; }
+  public boolean isEQ(int p_x, int p_y) { return this.gridEq[p_x][p_y]; }
   public float getPressure(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getPressure(); }
   public float getVelocityX(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityX(); }
   public float getVelocityY(int p_x, int p_y) { return this.gridFlow[p_x][p_y].getVelocityY(); }
@@ -100,12 +103,14 @@ public class LBM {
   public void setForceFieldX(int p_x, int p_y, float p_force){ this.ForceFieldX[p_x][p_y] = p_force; }
   public void setForceFieldY(int p_x, int p_y, float p_force){ this.ForceFieldY[p_x][p_y] = p_force; }
   public void setType(int p_x, int p_y, CELL_TYPE p_type) { this.gridType[p_x][p_y] = p_type; }
+  public void setEq(int p_x, int p_y, boolean p_eq) { this.gridEq[p_x][p_y] = p_eq; }
   public void setPressure(int p_x, int p_y, float p_p) { this.gridFlow[p_x][p_y].setPressure(p_p); }
   public void setVelocityX(int p_x, int p_y, float p_ux) { this.gridFlow[p_x][p_y].setVelocityX(p_ux); }
   public void setVelocityY(int p_x, int p_y, float p_uy) { this.gridFlow[p_x][p_y].setVelocityY(p_uy); }
   
-  public void setCell(int p_x, int p_y, CELL_TYPE p_type, float p_p, float p_ux, float p_uy, float p_phi) {
+  public void setCell(int p_x, int p_y, CELL_TYPE p_type, boolean p_eq, float p_p, float p_ux, float p_uy, float p_phi) {
     this.gridType[p_x][p_y] = p_type;
+    this.gridEq[p_x][p_y] = p_eq;
     this.gridFlow[p_x][p_y] = new CellFlow(p_p, p_ux, p_uy);
     for(int i=0; i<LBM.PhaseScale ;i++)
       for(int j=0; j<LBM.PhaseScale ;j++)  
@@ -123,13 +128,13 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), getVelocityX(i,j), getVelocityY(i,j), this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), isEQ(i,j), getVelocityX(i,j), getVelocityY(i,j), this);
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), isEQ(i,j), this);
     
     // should trilinear evaluate u !! 
     // second update with (gi(x,t)+gi(x,t+1))/2
@@ -137,14 +142,14 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), (gridFlow[i][j].getVelocityX()+gridFlow[i][j].getFuturVelocityX())*0.5f, (gridFlow[i][j].getVelocityY()+gridFlow[i][j].getFuturVelocityY())*0.5f, this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].collision(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), isEQ(i,j), (gridFlow[i][j].getVelocityX()+gridFlow[i][j].getFuturVelocityX())*0.5f, (gridFlow[i][j].getVelocityY()+gridFlow[i][j].getFuturVelocityY())*0.5f, this);
     
     // should trilinear evaluate u !! 
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
         for(int a=0; a<LBM.PhaseScale ;a++)
           for(int b=0; b<LBM.PhaseScale ;b++)
-            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), this);
+            gridPhase[i*LBM.PhaseScale+a][j*LBM.PhaseScale+b].streaming(i*LBM.PhaseScale+a, j*LBM.PhaseScale+b, LBM.PhaseScale, getType(i,j), isEQ(i,j), this);
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
