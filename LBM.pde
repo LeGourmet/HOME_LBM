@@ -1,4 +1,4 @@
-public enum COLOR_TYPE { DENSITY, VELOCITY, PHI, TYPE };
+public enum COLOR_TYPE { DENSITY, VELOCITY, TYPE };
 
 public class LBM {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
@@ -43,15 +43,17 @@ public class LBM {
 
   public int getColor(int p_x, int p_y, COLOR_TYPE p_colorType) {
     if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return color(0);
-    
-    if (grid[p_x][p_y].type == CELL_TYPE.SOLID) return color(0);
+     
     if (p_colorType == COLOR_TYPE.TYPE) {
-      if (grid[p_x][p_y].type == CELL_TYPE.EQUILIBRIUM) return color(0,0,255);
-      if (grid[p_x][p_y].type == CELL_TYPE.FLUID) return color(255,0,0);
-      if (grid[p_x][p_y].type == CELL_TYPE.INTERFACE) return color(255,0,255);
-      if (grid[p_x][p_y].type == CELL_TYPE.GAS) return color(0,0,255);
-      return color(127);
+      if(grid[p_x][p_y].type == CELL_TYPE.GAS) return color(127);
+      if(grid[p_x][p_y].type == CELL_TYPE.INTERFACE) return color(0,125,125);
+      if(grid[p_x][p_y].type == CELL_TYPE.FLUID) return color(0,0,200);
+      return color(0);
     }
+    
+    if (grid[p_x][p_y].type == CELL_TYPE.SOLID )return color(0);
+    
+    if (grid[p_x][p_y].type == CELL_TYPE.GAS )return color(30);
     
     int palette[];
     float val;
@@ -59,16 +61,10 @@ public class LBM {
     if(p_colorType == COLOR_TYPE.DENSITY){
       palette = new int[]{color(68,1,84), color(59,82,139), color(33,145,140), color(94,201,98), color(253,231,37)};
       val = constrain(grid[p_x][p_y].rho*0.5f, 0.f, 1.f);
-    }else if(p_colorType == COLOR_TYPE.VELOCITY){
+    }else{
       palette = new int[]{color(70,70,219), color(0,255,91), color(0,128,0), color(255,255,0), color(255,96,0), color(107,0,0), color(223,77,77)};
       val = constrain(sqrt(sq(grid[p_x][p_y].ux) + sq(grid[p_x][p_y].uy))/cs, 0.f, 1.f);
-    }else if(p_colorType == COLOR_TYPE.PHI){
-      palette = new int[]{color(40,40,180), color(180,40,40)};
-      val = constrain(grid[p_x][p_y].phi,0,1);
-    } else {
-      palette = new int[]{color(127), color(127)};
-      val = 0.f;
-    } 
+    }
       
     float x = val*0.999f*(palette.length-1.f);
     int idx = (int)floor(x);
@@ -89,7 +85,7 @@ public class LBM {
   void initialize(){
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].surfaceVOF_init(i, j, this);
+        grid[i][j].surfaceInit(i, j, this);
   }
   
   void doTimeStep(){
@@ -99,19 +95,19 @@ public class LBM {
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].sufaceVOF_1(i, j, this);
+        grid[i][j].swapMoments();
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].sufaceVOF_2(i, j, this);
+        grid[i][j].surface1(i, j, this);
+    
+    for(int i=0; i<Nx ;i++)
+      for(int j=0; j<Ny ;j++)
+        grid[i][j].surface2(i, j, this);
         
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].sufaceVOF_3(i, j, this);
-    
-    for(int i=0; i<Nx ;i++)
-      for(int j=0; j<Ny ;j++)
-        grid[i][j].swapMoments();
+        grid[i][j].surface3(i, j, this);
     
     t++;
   }

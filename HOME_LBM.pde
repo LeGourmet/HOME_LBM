@@ -5,7 +5,7 @@ int GRID_SIZE_Y = 300;
 int SCREEN_ZOOM = 3;
 
 boolean paused = true;
-COLOR_TYPE colorType = COLOR_TYPE.PHI;
+COLOR_TYPE colorType = COLOR_TYPE.TYPE;
 
 //int nextFrame=0;
 
@@ -16,14 +16,14 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  simulation.setGlobalForceY(-0.000016f);
+  simulation.setGlobalForceY(-0.0016f);
   
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
       if (j==0)                                                          simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f); 
       else if (j==simulation.getNy()-1)                                  simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
       else if (inSphere(i,j,GRID_SIZE_X/15,GRID_SIZE_X/2,GRID_SIZE_Y/2)) simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
-      else                                                               simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, (j>GRID_SIZE_Y-GRID_SIZE_Y/10-GRID_SIZE_Y/30 && j<GRID_SIZE_Y-GRID_SIZE_Y/30 && i>GRID_SIZE_X/6 && i<GRID_SIZE_X-GRID_SIZE_X/6) ? 1.f : 0.f);
+      else                                                               simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, (j<100 || (j>GRID_SIZE_Y-GRID_SIZE_Y/10-GRID_SIZE_Y/30 && j<GRID_SIZE_Y-GRID_SIZE_Y/30 && i>GRID_SIZE_X/6 && i<GRID_SIZE_X-GRID_SIZE_X/6)) ? 1.f : 0.f);
     }
   }
   
@@ -71,7 +71,7 @@ void draw(){
     }
   }
   
-  text("Display : "+(colorType==COLOR_TYPE.DENSITY ? "Density" : (colorType==COLOR_TYPE.VELOCITY ? "Velocity - Magnitude" :  (colorType==COLOR_TYPE.PHI ? "Phi" : "Type"))),10,15);
+  text("Display : "+(colorType==COLOR_TYPE.DENSITY ? "Density" : (colorType==COLOR_TYPE.VELOCITY ? "Velocity - Magnitude" :  "Type")),10,15);
   text("Frame : "+simulation.getT(),10,30);
   text("P : ["+nf(minP,0,3)+", "+nf(maxP,0,3)+"]",10,45); 
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);

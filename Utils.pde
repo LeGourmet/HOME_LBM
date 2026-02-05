@@ -16,8 +16,8 @@ boolean inSphere(int x, int y, int r, int cx, int cy){
 }
 
 // --------------------------------------------------- FLUIDS CONST ----------------------------------------------------
-final float nu_fluid = 0.0001f;              // Desbrun : [0.01f, 0.0006f] => 0.0015f
-final float st_fluid = 4e-3f;               // surface tension soulde be 10^-6surface tension soulde be 10^-6
+final float nu_fluid = 0.01f;              // Desbrun : [0.01f, 0.0006f] => 0.0015f
+final float st_fluid = 0.f;               // surface tension soulde be 10^-6surface tension soulde be 10^-6
 
 // ----------------------------------------------------- LBM CONST -----------------------------------------------------
 final float cs = 0.57735027f;
