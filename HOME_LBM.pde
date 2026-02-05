@@ -7,6 +7,8 @@ int SCREEN_ZOOM = 3;
 boolean paused = true;
 COLOR_TYPE colorType = COLOR_TYPE.TYPE;
 
+int nextFrame = 0;
+
 void settings(){
     size(GRID_SIZE_X*SCREEN_ZOOM,GRID_SIZE_Y*SCREEN_ZOOM,P2D);
 }
@@ -19,11 +21,11 @@ void setup(){
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f);
+        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
       } else if (i==simulation.getNx()-1) {
-        simulation.setCell(i, j, CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f);  
+        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f));  
       }  else {
-        simulation.setCell(i, j, CELL_TYPE.FLUID, 1.f, 0.f, 0.f, float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f);
+        simulation.setCell(i, j, new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f));
       }
     }
     
