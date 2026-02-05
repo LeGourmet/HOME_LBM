@@ -1,16 +1,16 @@
 // --------------------------------------------------- FLUIDS CONST ----------------------------------------------------
-final float rho_fluid = 3.f;
-final float nu_fluid = 0.004f;
-final float mo_fluid = 0.2f;
-final float ca_fluid = 0.26f;
+final float rho_fluid = 3.f;                 // ]0, +inf[
+final float nu_fluid = 0.004f;               // ]0, +inf[
+final float mo_fluid = 0.2f;                 // ]0, +inf[
+final float ca_fluid = 0.26f;                // [0, +inf[
 
-final float rho_air = 1.f;
-final float nu_air = 0.004f;
-final float mo_air = 0.2f;
-final float ca_air = 0.26f;
+final float rho_air = 1.f;                   // ]0, +inf[
+final float nu_air = 0.004f;                 // ]0, +inf[
+final float mo_air = 0.2f;                   // ]0, +inf[
+final float ca_air = 0.26f;                  // [0, +inf[
 
-final float missibility = 1.f;               // 0=>fully missible ; ]0,1[=>partialy missible ; 1=>immissible
-final float interfacial_thickness = 20.f;
+final float missibility = 1.f;               // [0,1]      : 0=>fully missible ; ]0,1[=>partialy missible ; 1=>immissible
+final float interfacial_thickness = 20.f;    // ]0, +inf[
 
 // ----------------------------------------------------- LBM CONST -----------------------------------------------------
 final float cs = 0.57735027f;

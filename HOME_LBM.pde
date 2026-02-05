@@ -21,11 +21,11 @@ void setup(){
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
+        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f, false));
       } else if (i==simulation.getNx()-1) {
-        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f));  
+        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f, false));  
       }  else {
-        simulation.setCell(i, j, new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f));
+        simulation.setCell(i, j, new Cell(CELL_TYPE.LIQUID, 1.f, 0.f, 0.f, float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f, false));
       }
     }
     
@@ -46,8 +46,6 @@ void draw(){
   }
   updatePixels();
   
-  if(!paused) simulation.doTimeStep();
-  
   float minP = Float.MAX_VALUE;
   float maxP = Float.MIN_VALUE;
   float minU = Float.MAX_VALUE;
@@ -57,7 +55,7 @@ void draw(){
   float totalPhi = 0.f;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
-      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
+      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).isEQ()) continue;
       minP = min(minP, simulation.getCell(i,j).getPressure());
       maxP = max(maxP, simulation.getCell(i,j).getPressure());
       float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
@@ -75,6 +73,19 @@ void draw(){
   text("U : ["+nf(minU,0,3)+", "+nf(maxU,0,3)+"]",10,60);
   text("Phi : ["+nf(minPhi,0,3)+", "+nf(maxPhi,0,3)+"]",10,75);
   text("Total Phi : "+nf(totalPhi,0,3),10,95);
+  
+  /*if(!paused && simulation.getT() == nextFrame && simulation.getT()<12000) {
+    String name = "./video/image_";
+    int id = nextFrame/10;
+         if(id<10) name += "00000000";
+    else if(id<100) name += "0000000";
+    else if(id<1000) name += "000000";
+    else if(id<10000) name += "00000";
+    save(name+id+".png");
+    nextFrame += 10;
+  }*/
+  
+  if(!paused) simulation.doTimeStep();
 }
 
 void keyPressed(){
@@ -88,7 +99,7 @@ void mousePressed(){
   for(int i=(mouseX/SCREEN_ZOOM-radius); i<(mouseX/SCREEN_ZOOM+radius) ;i++)
     for(int j=(mouseY/SCREEN_ZOOM-radius); j<(mouseY/SCREEN_ZOOM+radius) ;j++) {
       if(i>=0 && i<simulation.getNx() && j>=0 && j<simulation.getNy() && inSphere(i,j,radius,mouseX/SCREEN_ZOOM,mouseY/SCREEN_ZOOM))
-        if(simulation.getCell(i,j).getType()==CELL_TYPE.FLUID) 
+        if(simulation.getCell(i,j).getType()==CELL_TYPE.LIQUID) 
           //simulation.getCell(i,j).setPhi(1.f);
           simulation.getCell(i,j).setPressure(2.f);
   }

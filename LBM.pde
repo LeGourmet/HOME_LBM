@@ -57,15 +57,15 @@ public class LBM {
     if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return color(0);
      
     if (p_colorType == COLOR_TYPE.TYPE) {
-      if(grid[p_x][p_y].type == CELL_TYPE.FLUID && grid[p_x][p_y].phi<0.5f) return color(127);
+      if(grid[p_x][p_y].type == CELL_TYPE.LIQUID && grid[p_x][p_y].phi<0.5f) return color(127);
       //if(grid[p_x][p_y].type == CELL_TYPE.I) return color(0,125,125);
-      if(grid[p_x][p_y].type == CELL_TYPE.FLUID && grid[p_x][p_y].phi>0.5f) return color(0,0,200);
+      if(grid[p_x][p_y].type == CELL_TYPE.LIQUID && grid[p_x][p_y].phi>0.5f) return color(0,0,200);
       return color(0);
     }
     
     if (grid[p_x][p_y].type == CELL_TYPE.SOLID )return color(0);
         
-    if (grid[p_x][p_y].type == CELL_TYPE.FLUID && grid[p_x][p_y].phi<0.5f) return color(30);
+    if (grid[p_x][p_y].type == CELL_TYPE.LIQUID && grid[p_x][p_y].phi<0.5f) return color(30);
     
     int palette[];
     float val;
