@@ -117,7 +117,7 @@ public class Cell {
                                      (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
                                      0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-cs2) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-cs2))/cs4 +
                                      0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*cs2) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
-                                            (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6) 
+                                            (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_uy*p_uy*p_ux))/cs6) 
                           - 1.f);
   }
   
@@ -195,6 +195,8 @@ public class Cell {
       }
       
       float rho_laplace = (ca==0.f) ? 0.f :  def_6_sigma_k * calculate_curvature(phiM);
+      //float rho_laplace = (def_6_sigma_k==0.f) ? 0.f :  def_6_sigma_k * calculate_curvature(phiM);
+    
     
       // limit for stability purpose (simulation can't exceed mach 1)
       float tmpUx = ux + 0.5f * fx;
