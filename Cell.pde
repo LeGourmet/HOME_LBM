@@ -23,9 +23,16 @@ public class Cell {
   protected float[] hi;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
-  public Cell(CELL_TYPE p_type, float p_p, float p_ux, float p_uy, float p_phi, boolean p_eq) {
-    this.type = p_type;
-    this.eq = p_eq;
+  public Cell(boolean p_solid, boolean p_eq, float p_p, float p_ux, float p_uy, float p_phi) {
+    if(p_solid) {
+      this.phi = 0.f;
+      this.type = CELL_TYPE.SOLID;
+      this.eq = false;
+    } else {
+      this.phi = constrain(p_phi,0.f,1.f); 
+      this.type = (this.phi<=0.f) ? CELL_TYPE.GAS : (this.phi>=1.f) ? CELL_TYPE.LIQUID : CELL_TYPE.INTERFACE;
+      this.eq = p_eq;
+    }
     
     this.p = max(p_p, 0.f);
     this.ux = p_ux;
@@ -40,15 +47,14 @@ public class Cell {
     this._Sxx = this.Sxx;
     this._Syy = this.Syy;
     this._Sxy = this.Sxy;  // Syx = Sxy; // symetric tensor
-    
-    this.phi = constrain(p_phi,0.f,1.f);
-    
+  
     this.hi = new float[5];
     for(int i=0; i<5 ;i++) this.hi[i] = computeHiEq(i, this.phi, this.ux, this.uy);
   } 
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public CELL_TYPE getType() { return this.type; }
+  public boolean isEQ() { return this.eq; }
   public float getPressure() { return this.p; }
   public float getVelocityX() { return this.ux; }
   public float getVelocityY() { return this.uy; }
@@ -56,19 +62,19 @@ public class Cell {
   public float getSyy() { return this.Syy; }
   public float getSxy() { return this.Sxy; }
   public float getPhi() { return this.phi; }
-  public boolean isEQ() { return this.eq; }
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
-  public void setType(CELL_TYPE p_type) { this.type = p_type; }
+  public void setType(CELL_TYPE p_type) { this.type = p_type; if(this.type == CELL_TYPE.SOLID) this.eq = false; }
+  public void setEq(boolean p_eq) { if(this.type != CELL_TYPE.SOLID) this.eq = p_eq; }  
   public void setPressure(float p_pressure) { this.p = max(0.f,p_pressure); }
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   public void setPhi(float p_phi) {
-    this.phi = constrain(p_phi,0.f,1.f);
+    this.phi = constrain(p_phi,0.f,1.f); 
+    this.type = (this.phi<=0.f) ? CELL_TYPE.GAS : (this.phi>=1.f) ? CELL_TYPE.LIQUID : CELL_TYPE.INTERFACE;
     this.hi = new float[5];
     for(int i=0; i<5 ;i++) this.hi[i] = computeHiEq(i, this.phi, this.ux, this.uy);
   }
-  public void setEq(boolean p_eq) { this.eq = p_eq; }
   
   // -------------------------------------------------- FUNCTIONS DDFs ---------------------------------------------------  
   private float computeFiEq(int p_i, float p_p, float p_ux, float p_uy) {
@@ -88,6 +94,8 @@ public class Cell {
     return D2Q5_w[p_i] * p_phi * (1.f + (D2Q5_cx[p_i]*p_ux + D2Q5_cy[p_i]*p_uy)/cs2);
   }
   
+  // -------------------------------------------------- GRADIENTS PHI ---------------------------------------------------  
+  
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
   public void flowStreamingCollision(int p_x, int p_y, LBM p_simulation) {
     if(type==CELL_TYPE.SOLID || eq) return;
@@ -96,6 +104,7 @@ public class Cell {
     float nu = 1.f/(phi/nu_fluid + (1.f-phi)/nu_air);
     float tau = 0.5f + nu/cs2;
         
+    // /!\ care of solid ? /!\
     // unroll => wi*ci_alpha*phi(x+cix,y+ciy)/cs2
     float GphiX = (D2Q5_w[1]*p_simulation.getCell(mod(p_x+1,p_simulation.getNx()),p_y).getPhi() - D2Q5_w[2]*p_simulation.getCell(mod(p_x-1,p_simulation.getNx()),p_y).getPhi())/cs2;
     float GphiY = (D2Q5_w[3]*p_simulation.getCell(p_x,mod(p_y+1,p_simulation.getNy())).getPhi() - D2Q5_w[4]*p_simulation.getCell(p_x,mod(p_y-1,p_simulation.getNy())).getPhi())/cs2;
@@ -210,11 +219,19 @@ public class Cell {
   public void phaseStreaming(int p_x, int p_y, LBM p_simulation){
     if(type==CELL_TYPE.SOLID || eq) return;
     
-    phi = 0.f;
-    for(int i=0; i<5 ;i++){
-      int j = (i==0) ? i : ((i%2==0) ? i-1 : i+1);
-      Cell cell = p_simulation.getCell(mod(p_x+D2Q5_cx[j],p_simulation.getNx()),mod(p_y+D2Q5_cy[j],p_simulation.getNy())); 
-      phi += (cell.type == CELL_TYPE.SOLID) ? hi[j] : cell.hi[i];
+    phi = hi[0];
+    for(int i=1; i<5 ;i++){
+      int j = (i%2==0) ? i-1 : i+1;
+      
+      int idNx = mod(p_x+D2Q5_cx[j],p_simulation.getNx());
+      int idNy = mod(p_y+D2Q5_cy[j],p_simulation.getNy());
+      
+      CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
+      
+      if(typeN==CELL_TYPE.SOLID) phi += -hi[j];
+      else phi += p_simulation.getCell(idNx,idNy).hi[i];
     }
+    
+    this.type = (this.phi<=0.45f) ? CELL_TYPE.GAS : (this.phi>=0.55f) ? CELL_TYPE.LIQUID : CELL_TYPE.INTERFACE;
   }
 }

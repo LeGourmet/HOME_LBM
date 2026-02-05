@@ -10,7 +10,7 @@ final float mo_air = 0.2f;                   // ]0, +inf[
 final float ca_air = 0.26f;                  // [0, +inf[
 
 final float missibility = 1.f;               // [0,1]      : 0=>fully missible ; ]0,1[=>partialy missible ; 1=>immissible
-final float interfacial_thickness = 20.f;    // ]0, +inf[
+final float interfacial_thickness = 5.f;    // ]0, +inf[
 
 // ----------------------------------------------------- LBM CONST -----------------------------------------------------
 final float cs = 0.57735027f;

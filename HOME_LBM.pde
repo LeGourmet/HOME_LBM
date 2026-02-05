@@ -16,16 +16,19 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  simulation.setGlobalForceX(-0.000016f);
+  //simulation.setGlobalForceX(-0.000016f);
+  
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f, false));
+        //simulation.setCell(i, j, new Cell(true, false, 1.f, 0.f, 0.f, 0.f));
+        simulation.setCell(i, j, new Cell(false, true, 1.f, 0.f, 0.f, 0.f));
       } else if (i==simulation.getNx()-1) {
-        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f, false));  
+        //simulation.setCell(i, j, new Cell(true, false, 1.f, 0.f, 0.f, 0.f));  
+        simulation.setCell(i, j, new Cell(false, true, 1.f, 0.f, 0.2f, 1.f));  
       }  else {
-        simulation.setCell(i, j, new Cell(CELL_TYPE.LIQUID, 1.f, 0.f, 0.f, float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f, false));
+        simulation.setCell(i, j, new Cell(false, false, 1.f, 0.f, 0.f, float(i)>(float(2*GRID_SIZE_Y)+0.1f*float(GRID_SIZE_Y)*cos(2.f*PI*float(j)/float(GRID_SIZE_Y))) ? 1.f : 0.f));
       }
     }
     
@@ -101,6 +104,6 @@ void mousePressed(){
       if(i>=0 && i<simulation.getNx() && j>=0 && j<simulation.getNy() && inSphere(i,j,radius,mouseX/SCREEN_ZOOM,mouseY/SCREEN_ZOOM))
         if(simulation.getCell(i,j).getType()==CELL_TYPE.LIQUID) 
           //simulation.getCell(i,j).setPhi(1.f);
-          simulation.getCell(i,j).setPressure(2.f);
+          simulation.getCell(i,j).setPressure(20.f);
   }
 }
