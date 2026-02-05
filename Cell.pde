@@ -1,8 +1,9 @@
-public enum CELL_TYPE { SOLID, FLUID, EQUILIBRIUM };
+public enum CELL_TYPE { SOLID, FLUID };
 
 public class Cell {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
   private CELL_TYPE type;
+  private boolean eq;
     
   private float rho;
   private float ux;
@@ -19,8 +20,9 @@ public class Cell {
   private float _Sxy;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
-  public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy) {
+  public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy, boolean p_eq) {
     this.type = p_type;
+    this.eq = p_eq;
     
     this.rho = max(p_rho, 0.f);
     this.ux = p_ux;
@@ -45,12 +47,14 @@ public class Cell {
   public float getSxx() { return this.Sxx; }
   public float getSyy() { return this.Syy; }
   public float getSxy() { return this.Sxy; }
+  public boolean isEQ() { return this.eq; }
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setType(CELL_TYPE p_type) { this.type = p_type; }
   public void setDensity(float p_density) { this.rho = max(0.f,p_density); }
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
+  public void setEq(boolean p_eq) { this.eq = p_eq; }
   
   // -------------------------------------------------- FUNCTIONS DDFs ---------------------------------------------------  
   private float computeFiEq(int p_i, float p_rho, float p_ux, float p_uy) {
@@ -62,13 +66,13 @@ public class Cell {
                                      (D2Q9_cx[p_i]*p_ux + D2Q9_cy[p_i]*p_uy)/cs2 +
                                      0.5f*( 2.f*p_Sxy*D2Q9_cx[p_i]*D2Q9_cy[p_i] + p_Sxx*(D2Q9_cx[p_i]*D2Q9_cx[p_i]-cs2) + p_Syy*(D2Q9_cy[p_i]*D2Q9_cy[p_i]-cs2))/cs4 +
                                      0.5f*( (D2Q9_cx[p_i]*D2Q9_cx[p_i]*D2Q9_cy[p_i]-D2Q9_cy[p_i]*cs2) * (p_Sxx*p_uy+2.f*p_Sxy*p_ux-2.f*p_ux*p_ux*p_uy) +
-                                            (D2Q9_cx[p_i]*D2Q9_cy[p_i]*D2Q9_cy[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_ux*p_uy*p_uy))/cs6) 
+                                            (D2Q9_cy[p_i]*D2Q9_cy[p_i]*D2Q9_cx[p_i]-D2Q9_cx[p_i]*cs2) * (p_Syy*p_ux+2.f*p_Sxy*p_uy-2.f*p_uy*p_uy*p_ux))/cs6) 
                           - 1.f);
   }
   
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
   public void flowStreamingCollision(int p_x, int p_y, LBM p_simulation) {
-    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM) return;
+    if(type==CELL_TYPE.SOLID || eq) return;
      
     // external forces = body forces : Newton second law of motion : F = M*G = M*A => g = A
     float fx = p_simulation.getForceX(p_x, p_y);
@@ -87,6 +91,7 @@ public class Cell {
       int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
 
       CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
+      boolean eqN = p_simulation.getCell(idNx,idNy).isEQ();
       float rhoN = p_simulation.getCell(idNx,idNy).getDensity();
       float uxN  = p_simulation.getCell(idNx,idNy).getVelocityX();
       float uyN  = p_simulation.getCell(idNx,idNy).getVelocityY();
@@ -96,7 +101,7 @@ public class Cell {
 
       if(typeN==CELL_TYPE.SOLID)
         fin[i] = computeFi(i, rho, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
-      else if(typeN==CELL_TYPE.EQUILIBRIUM)
+      else if(eqN)
         fin[i] = computeFiEq(i, rhoN, uxN, uyN);
       else
         fin[i] = computeFi(i, rhoN, uxN, uyN, SxxN, SyyN, SxyN);
@@ -128,7 +133,7 @@ public class Cell {
     _Sxy = (1.f-1.f/tau)*SxyT + uxT*uyT/tau + (2.f*tau-1.f)/(2.f*tau)*(fx*uyT+fy*uxT);
   }  
   
-  public void flowCollision(int p_x, int p_y, LBM p_simulation) { 
+  public void swapMoments(int p_x, int p_y, LBM p_simulation) { 
     this.rho = this._rho;
     this.ux = this._ux;
     this.uy = this._uy;

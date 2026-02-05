@@ -98,7 +98,7 @@ public class LBM {
     
     for(int i=0; i<Nx ;i++)
       for(int j=0; j<Ny ;j++)
-        grid[i][j].flowCollision(i, j, this);
+        grid[i][j].swapMoments(i, j, this);
     
     t++;
   }
