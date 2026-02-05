@@ -21,13 +21,13 @@ void setup(){
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++) {
       if(i==0){
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.2f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.2f, 0.f, true));
       } else if (i==simulation.getNx()-1) {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.EQUILIBRIUM, 1.f, 0.f, 0.f));  
+        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, true));  
       } else if(inSphere(i,j,GRID_SIZE_Y/10,50,GRID_SIZE_Y/2)) { 
-        simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, false));
       } else {
-        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f));
+        simulation.setCell(i,j,new Cell(CELL_TYPE.FLUID, 1.f, 0.f, 0.f, false));
       }
     }
     
@@ -54,7 +54,7 @@ void draw(){
   float maxU = Float.MIN_VALUE;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
-      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
+      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).isEQ()) continue;
       minP = min(minP, simulation.getCell(i,j).getPressure());
       maxP = max(maxP, simulation.getCell(i,j).getPressure());
       float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
