@@ -2,8 +2,8 @@ import java.util.Stack;
 
 LBM simulation;
 
-int GRID_SIZE_X = 200;
-int GRID_SIZE_Y = 200;
+int GRID_SIZE_X = 300;
+int GRID_SIZE_Y = 300;
 int SCREEN_ZOOM = 3;
 
 boolean paused = true;
@@ -19,10 +19,24 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  simulation.setGlobalForceY(0.0016f);
+  simulation.setGlobalForceY(0.0016f); // should be negative
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++){
+      if (j==0)                                                          simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f)); 
+      else if (j==simulation.getNy()-1)                                  simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
+      else if (inSphere(i,j,GRID_SIZE_X/15,GRID_SIZE_X/2,GRID_SIZE_Y/2)) simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
+      else if (j<100 || 
+               (j>GRID_SIZE_Y-GRID_SIZE_Y/10-GRID_SIZE_Y/30 && 
+                j<GRID_SIZE_Y-GRID_SIZE_Y/30 &&
+                i>GRID_SIZE_X/6 &&
+                i<GRID_SIZE_X-GRID_SIZE_X/6))                            simulation.setCell(i, j, new Cell(CELL_TYPE.L, 1.f, 0.f, 0.f, 1.f));
+      else                                                               simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
+    
+      
+      
+      
+      
       if (j==simulation.getNy()-1 || (sqrt(sq(i-100)+sq(j-100))<30)) {
         simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f));
       } 
