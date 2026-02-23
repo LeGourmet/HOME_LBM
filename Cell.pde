@@ -187,7 +187,7 @@ public class Cell {
      for(int i=0; i<9 ;i++)
       fin[i] += D2Q9_w[i];
     
-    float rhoT = fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];  // sum(fi);
+    float rhoT = fin[0] + fin[1] + fin[2] + fin[3] + fin[4] + fin[5] + fin[6] + fin[7] + fin[8];   // sum(fi);
     float uxT  = (fin[1] - fin[2] + fin[5] - fin[6] + fin[7] - fin[8]) / rhoT + 0.5f * fx;         // sum(fi * cix);
     float uyT  = (fin[3] - fin[4] + fin[5] - fin[6] + fin[8] - fin[7]) / rhoT + 0.5f * fy;         // sum(fi * ciy);
     float SxxT = (fin[1] + fin[2] + fin[5] + fin[6] + fin[7] + fin[8]) / rhoT - cs2;               // sum(fi * (cix*cix-cs2));
