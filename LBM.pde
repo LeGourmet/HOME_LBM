@@ -248,7 +248,7 @@ public class LBM {
         
         if (bubbles[currentId].volumeInit==0.f) bubbles[currentId].volumeInit = bubbles[currentId].volume;
         bubbles[currentId].rho = cs2 * bubbles[currentId].volumeInit/bubbles[currentId].volume;
-        println("bubble " + currentId + ", rho="+bubbles[currentId].rho + ", volumeInit=" + bubbles[currentId].volumeInit + ", volume=" + bubbles[currentId].volume);
+        //println("bubble " + currentId + ", rho="+bubbles[currentId].rho + ", volumeInit=" + bubbles[currentId].volumeInit + ", volume=" + bubbles[currentId].volume);
       }
     }
     

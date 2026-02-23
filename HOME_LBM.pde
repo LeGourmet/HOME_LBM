@@ -9,7 +9,7 @@ int SCREEN_ZOOM = 3;
 boolean paused = true;
 COLOR_TYPE colorType = COLOR_TYPE.TYPE;
 
-//int nextFrame=0;
+int nextFrame=0;
 
 void settings(){
     size(GRID_SIZE_X*SCREEN_ZOOM,GRID_SIZE_Y*SCREEN_ZOOM,P2D);
@@ -19,10 +19,22 @@ void settings(){
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
-  simulation.setGlobalForceY(0.0016f); // should be negative
+  simulation.setGlobalForceY(-0.0016f);
+  
+  boolean cave[][] = generateCaves(300, 300, 0.49, 10);
   
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++){
+      
+           if (j==0)                            simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f)); 
+      else if (j==simulation.getNy()-1)         simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
+      else if (j>270)                           simulation.setCell(i, j, new Cell(CELL_TYPE.L, 1.f, 0.f, 0.f, 1.f));
+      else if (j>250 || j<50)                   simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
+      else if (cave[i][j])                      simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f)); 
+      else                                      simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
+
+      
+      /*
       if (j==0)                                                          simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f)); 
       else if (j==simulation.getNy()-1)                                  simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
       else if (inSphere(i,j,GRID_SIZE_X/15,GRID_SIZE_X/2,GRID_SIZE_Y/2)) simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
@@ -32,21 +44,7 @@ void setup(){
                 i>GRID_SIZE_X/6 &&
                 i<GRID_SIZE_X-GRID_SIZE_X/6))                            simulation.setCell(i, j, new Cell(CELL_TYPE.L, 1.f, 0.f, 0.f, 1.f));
       else                                                               simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
-    
-      
-      
-      
-      
-      if (j==simulation.getNy()-1 || (sqrt(sq(i-100)+sq(j-100))<30)) {
-        simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 1.f));
-      } 
-      //else if(i%10==0) {
-      //else if(i>30 && i<170 && j<50 && j>10) {
-      else if(j<50 && j>10) {
-        simulation.setCell(i, j, new Cell(CELL_TYPE.L, 1.f, 0.f, 0.f, 1.f));
-      } else {
-        simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
-      }
+      */
     }
   
   simulation.init();
@@ -61,7 +59,7 @@ void draw(){
       color col = simulation.getColor(i,j,colorType);
       for(int a=0; a<SCREEN_ZOOM ;a++) {
         for(int b=0; b<SCREEN_ZOOM ;b++) {
-          pixels[(j*SCREEN_ZOOM+a) * width + (i*SCREEN_ZOOM+b)] = col;
+          pixels[((simulation.getNy()-1-j)*SCREEN_ZOOM+a) * width + (i*SCREEN_ZOOM+b)] = col;
         }
       }
     }
