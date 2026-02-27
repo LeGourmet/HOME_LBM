@@ -15,7 +15,6 @@ void settings(){
     size(GRID_SIZE_X*SCREEN_ZOOM,GRID_SIZE_Y*SCREEN_ZOOM,P2D);
 }
 
-// warning dont use eq type
 void setup(){  
   simulation = new LBM(GRID_SIZE_X,GRID_SIZE_Y);
   
@@ -26,12 +25,12 @@ void setup(){
   for(int i=0; i<simulation.getNx() ;i++)
     for(int j=0; j<simulation.getNy() ;j++){
       
-           if (j==0)                            simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f)); 
-      else if (j==simulation.getNy()-1)         simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f));
-      else if (j>270)                           simulation.setCell(i, j, new Cell(CELL_TYPE.L, 1.f, 0.f, 0.f, 1.f));
-      else if (j>250 || j<50)                   simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
-      else if (cave[i][j])                      simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f)); 
-      else                                      simulation.setCell(i, j, new Cell(CELL_TYPE.G, 1.f, 0.f, 0.f, 0.f));
+           if (j==0)                            simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f, false)); 
+      else if (j==simulation.getNy()-1)         simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f, false));
+      else if (j>270)                           simulation.setCell(i, j, new Cell(CELL_TYPE.LIQUID, 1.f, 0.f, 0.f, 1.f, false));
+      else if (j>250 || j<50)                   simulation.setCell(i, j, new Cell(CELL_TYPE.GAS, 1.f, 0.f, 0.f, 0.f, false));
+      else if (cave[i][j])                      simulation.setCell(i, j, new Cell(CELL_TYPE.SOLID, 1.f, 0.f, 0.f, 0.f, false)); 
+      else                                      simulation.setCell(i, j, new Cell(CELL_TYPE.GAS, 1.f, 0.f, 0.f, 0.f, false));
 
       
       /*
@@ -72,7 +71,7 @@ void draw(){
   float maxU = Float.MIN_VALUE;
   for(int i=0; i<simulation.getNx() ;i++) {
     for(int j=0; j<simulation.getNy() ;j++) {
-      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID || simulation.getCell(i,j).getType()==CELL_TYPE.EQUILIBRIUM) continue;
+      if(simulation.getCell(i,j).getType()==CELL_TYPE.SOLID) continue;
       minP = min(minP, simulation.getCell(i,j).getDensity());
       maxP = max(maxP, simulation.getCell(i,j).getDensity());
       float tmpU = sqrt(sq(simulation.getCell(i,j).getVelocityX())+sq(simulation.getCell(i,j).getVelocityY()));
@@ -105,4 +104,19 @@ void keyPressed(){
   if(key==TAB) colorType = COLOR_TYPE.values()[(colorType.ordinal() + 1) % COLOR_TYPE.values().length];
 }
 
-void mousePressed(){}
+void mousePressed(){
+  int radius = (GRID_SIZE_X+GRID_SIZE_Y)/100;
+  int mX = mouseX, mY = height-mouseY;
+  
+  for(int i=(mX/SCREEN_ZOOM-radius); i<(mX/SCREEN_ZOOM+radius) ;i++)
+    for(int j=(mY/SCREEN_ZOOM-radius); j<(mY/SCREEN_ZOOM+radius) ;j++)
+      if(i>=0 && i<simulation.getNx() && j>=0 && j<simulation.getNy() && inSphere(i,j,radius,mX/SCREEN_ZOOM,mY/SCREEN_ZOOM) && simulation.getCell(i,j).getType()!=CELL_TYPE.SOLID){
+          simulation.getCell(i,j).pushType(CELL_TYPE.LIQUID);
+          simulation.getCell(i,j).setEquilibrium(false);
+      }
+   
+  for(int i=0; i<simulation.getNx() ;i++)
+    for(int j=0; j<simulation.getNy() ;j++)
+      simulation.getCell(i,j).init(i, j, simulation);
+  simulation.updateBubbles();
+}

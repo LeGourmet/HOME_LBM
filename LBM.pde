@@ -69,9 +69,9 @@ public class LBM {
     if(p_x<0 || p_x>=this.Nx || p_y<0 || p_y>=this.Ny) return color(0);
      
     if (p_colorType == COLOR_TYPE.TYPE) {
-      if(grid[p_x][p_y].type == CELL_TYPE.G) return color(127);
-      if(grid[p_x][p_y].type == CELL_TYPE.I) return color(0,125,125);
-      if(grid[p_x][p_y].type == CELL_TYPE.L) return color(0,0,200);
+      if(grid[p_x][p_y].type == CELL_TYPE.GAS) return color(127);
+      if(grid[p_x][p_y].type == CELL_TYPE.INTERFACE) return color(0,125,125);
+      if(grid[p_x][p_y].type == CELL_TYPE.LIQUID) return color(0,0,200);
       return color(0);
     }
     
@@ -82,7 +82,7 @@ public class LBM {
       return color(random(255), random(255), random(255));
     }
         
-    if (grid[p_x][p_y].type == CELL_TYPE.G )return color(30);
+    if (grid[p_x][p_y].type == CELL_TYPE.GAS)return color(30);
     
     int palette[];
     float val;
@@ -123,46 +123,7 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         grid[i][j].init(i, j, this);
     
-    // ------- Connect Component Labelling (=> flood fill) -------
-    int currentLabel = 0;
-    Stack<Integer> coords = new Stack<>();
-    
-    for(int i=0; i<Nx ;i++) {
-      for(int j=0; j<Ny ;j++) {
-        if(grid[i][j].getBubbleId() != -1 || (grid[i][j].getType() != CELL_TYPE.I && grid[i][j].getType() != CELL_TYPE.G)) continue;
-        coords.clear();
-        coords.push(j*Nx+i);
-        
-        while (!coords.empty()) {
-            int coord = coords.pop();
-            int coordX = coord%Nx;
-            int coordY = coord/Nx;
-            
-            if(grid[coordX][coordY].getBubbleId() != -1) continue;
-            
-            grid[coordX][coordY].bubbleId = currentLabel;
-            bubbles[currentLabel].numberCells++;
-            bubbles[currentLabel].volumeInit += 1.f-grid[coordX][coordY].getPhi();
-            
-            for (int k=1; k<9 ;k++) {
-              int offsetX = mod(coordX+D2Q9_cx[k],Nx);
-              int offsetY = mod(coordY+D2Q9_cy[k],Ny);
-              if(grid[offsetX][offsetY].getBubbleId() == -1 && (grid[offsetX][offsetY].getType() == CELL_TYPE.I || grid[offsetX][offsetY].getType() == CELL_TYPE.G)) coords.push(offsetY*Nx+offsetX);
-            }
-        }
-        
-        //println("Bubble :", currentLabel, " with", bubbles[currentLabel].numberCells, " cells, volume :", bubbles[currentLabel].volumeInit);
-        
-        currentLabel++;
-      }
-    }
-    
-    // ----------------------- Bubble Init -----------------------
-    for(int id=0; id<B ;id++) {
-      if(bubbles[id].numberCells==0) continue;
-      bubbles[id].rho = cs2;
-      bubbles[id].volume = bubbles[id].volumeInit;
-    }
+    initBubbles();
   }
   
   void doTimeStep(){    
@@ -190,11 +151,60 @@ public class LBM {
         grid[i][j].surface3(i, j, this);
         
     // ------------- Bubble Update Id and VolumeInit -------------
+    updateBubbles();
+    
+    t++;
+  }
+  
+  // ----------------------------------------------------- FUNCTIONS BUBBLES -----------------------------------------------------
+  void initBubbles(){
+    // ------- Connect Component Labelling (=> flood fill) -------
+    int currentLabel = 0;
+    Stack<Integer> coords = new Stack<>();
     
     for(int i=0; i<Nx ;i++) {
       for(int j=0; j<Ny ;j++) {
+        if(grid[i][j].getBubbleId() != -1 || (grid[i][j].getType() != CELL_TYPE.INTERFACE && grid[i][j].getType() != CELL_TYPE.GAS)) continue;
+        coords.clear();
+        coords.push(j*Nx+i);
+        
+        while (!coords.empty()) {
+            int coord = coords.pop();
+            int coordX = coord%Nx;
+            int coordY = coord/Nx;
+            
+            if(grid[coordX][coordY].getBubbleId() != -1) continue;
+            
+            grid[coordX][coordY].bubbleId = currentLabel;
+            bubbles[currentLabel].numberCells++;
+            bubbles[currentLabel].volumeInit += 1.f-grid[coordX][coordY].getPhi();
+            
+            for (int k=1; k<9 ;k++) {
+              int offsetX = mod(coordX+D2Q9_cx[k],Nx);
+              int offsetY = mod(coordY+D2Q9_cy[k],Ny);
+              if(grid[offsetX][offsetY].getBubbleId() == -1 && (grid[offsetX][offsetY].getType() == CELL_TYPE.INTERFACE || grid[offsetX][offsetY].getType() == CELL_TYPE.GAS)) coords.push(offsetY*Nx+offsetX);
+            }
+        }
+        
+        //println("Bubble :", currentLabel, " with", bubbles[currentLabel].numberCells, " cells, volume :", bubbles[currentLabel].volumeInit);
+        
+        currentLabel++;
+      }
+    }
+    
+    // ----------------------- Bubble Init -----------------------
+    for(int id=0; id<B ;id++) {
+      if(bubbles[id].numberCells==0) continue;
+      bubbles[id].rho = cs2;
+      bubbles[id].volume = bubbles[id].volumeInit;
+    }
+  }
+  
+  void updateBubbles(){
+    for(int i=0; i<Nx ;i++) {
+      for(int j=0; j<Ny ;j++) {
         int idB = grid[i][j].getBubbleId();
-        if(!(idB>=0 && grid[i][j].getType()==CELL_TYPE.L)) continue; // if(!split) continue;
+        if(!(idB>=0 && grid[i][j].getType()==CELL_TYPE.LIQUID)) continue; // if(!split) continue;
                 
         bubbles[idB].numberCells--;
         if(bubbles[idB].numberCells<=0) bubbles[idB].reset();
@@ -212,7 +222,7 @@ public class LBM {
       for(int j=0; j<Ny ;j++) {
         int idN = grid[i][j].getBubbleId(); 
         CELL_TYPE typeN = grid[i][j].getType();
-        if((idN<0 && !(typeN==CELL_TYPE.I || typeN==CELL_TYPE.G)) || (idN>=0 && !bubbles[idN].deprecated)) continue; // if(mark || Solid || Liquid)
+        if((idN<0 && !(typeN==CELL_TYPE.INTERFACE || typeN==CELL_TYPE.GAS)) || (idN>=0 && !bubbles[idN].deprecated)) continue; // if(mark || Solid || Liquid)
         
         int currentId = -1;
         for(int id=0; id<B ; id++)
@@ -242,7 +252,7 @@ public class LBM {
             int offsetY = mod(coordY+D2Q9_cy[n],Ny);
             int idO = grid[offsetX][offsetY].getBubbleId();
             CELL_TYPE typeO = grid[offsetX][offsetY].getType();
-            if((idO<0 && (typeO==CELL_TYPE.I || typeO==CELL_TYPE.G)) || (idO>=0 && bubbles[idO].deprecated)) coords.push(offsetY*Nx+offsetX); // warning, bad if!
+            if((idO<0 && (typeO==CELL_TYPE.INTERFACE || typeO==CELL_TYPE.GAS)) || (idO>=0 && bubbles[idO].deprecated)) coords.push(offsetY*Nx+offsetX); // warning, bad if!
           }
         }
         
@@ -255,7 +265,5 @@ public class LBM {
     for(int id=0; id<B ; id++)
       if(bubbles[id].deprecated)
         bubbles[id].reset();
-    
-    t++;
   }
 }

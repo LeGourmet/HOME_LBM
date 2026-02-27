@@ -1,8 +1,9 @@
-public enum CELL_TYPE { L, I, G, IL, IG, GI, EQUILIBRIUM, SOLID };
+public enum CELL_TYPE { SOLID, LIQUID, INTERFACE, GAS, IL, IG, GI };
 
 public class Cell {
   // ----------------------------------------------------- ATTRIBUTS -----------------------------------------------------
   private CELL_TYPE type;
+  private boolean equilibrium;
     
   private float rho;
   private float ux;
@@ -25,7 +26,9 @@ public class Cell {
   private int bubbleId;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
-  public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy, float p_phi) {
+  public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy, float p_phi, boolean p_eq) {
+    this.equilibrium = p_eq;
+    
     this.rho = max(0.f, p_rho);
     this.ux = p_ux;
     this.uy = p_uy;
@@ -36,11 +39,11 @@ public class Cell {
     } else {
       this.phi = (p_phi<0.5f) ? 0.f : 1.f;
       if(this.phi == 0.f){
-        this.type = CELL_TYPE.G;
+        this.type = CELL_TYPE.GAS;
         this.rho = 1.f;
         this.ux = 0.f;
         this.uy = 0.f;
-      } else this.type = CELL_TYPE.L;
+      } else this.type = CELL_TYPE.LIQUID;
     }
     
     this.Sxx = (ux*ux - cs2);
@@ -55,6 +58,7 @@ public class Cell {
   
   // ------------------------------------------------------ GETTERS ------------------------------------------------------
   public CELL_TYPE getType() { return this.type; }
+  public boolean isEquilibrium() { return this.equilibrium; }
   public float getDensity() { return this.rho; }
   public float getVelocityX() { return this.ux; }
   public float getVelocityY() { return this.uy; }
@@ -68,14 +72,28 @@ public class Cell {
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setType(CELL_TYPE p_type) { this.type = p_type; }
+  public void setEquilibrium(boolean p_eq) { this.equilibrium = p_eq; }
   public void setDensity(float p_rho) { this.rho = max(0.f,p_rho); }
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   public void setBubbleId(int p_bubbleId) { this.bubbleId = p_bubbleId; }
   
+  public void pushType(CELL_TYPE p_type) { 
+    switch (p_type) {
+      case LIQUID : this.type=CELL_TYPE.LIQUID; this.phi=1.f; break;
+      case SOLID : this.type=CELL_TYPE.SOLID; this.phi=0.f; break;
+      default : this.type=CELL_TYPE.GAS; this.phi=0.f; break;
+    }
+    
+    this.rho=1.f; 
+    this.ux=0.f; 
+    this.uy=0.f; 
+    this.mass=this.phi;
+  }
+  
   // -------------------------------------------------- INIT ---------------------------------------------------  
   public void init(int p_x, int p_y, LBM p_simulation) {
-    if(type!=CELL_TYPE.G) return;
+    if(type!=CELL_TYPE.GAS) return;
     
     float rhon=0.f, uxn=0.f, uyn=0.f, counter=0.f; // average over all fluid/interface neighbors
 
@@ -84,7 +102,7 @@ public class Cell {
       int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
 
       CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-      if (typeN == CELL_TYPE.L) {
+      if (typeN == CELL_TYPE.LIQUID) {
         counter += 1.f;
         rhon += p_simulation.getCell(idNx,idNy).getDensity();
         uxn += p_simulation.getCell(idNx,idNy).getVelocityX();
@@ -93,7 +111,7 @@ public class Cell {
     }
       
     if(counter > 0.f){
-      type = CELL_TYPE.I;
+      type = CELL_TYPE.INTERFACE;
       
       rho = rhon / counter;
       ux = uxn / counter;
@@ -123,8 +141,8 @@ public class Cell {
   
   // -------------------------------------------------- FUNCTIONS FLOW ---------------------------------------------------  
   public void flowStreamingCollision(int p_x, int p_y, LBM p_simulation) {
-    if(type==CELL_TYPE.SOLID || type==CELL_TYPE.EQUILIBRIUM || type==CELL_TYPE.G ) return;
-     
+    if(type==CELL_TYPE.SOLID || (equilibrium && type==CELL_TYPE.LIQUID) || type==CELL_TYPE.GAS ) return;
+    
     float tau = nu/cs2 + 0.5f;
      
     // external forces = body forces : Newton second law of motion : F = M*G = M*A => g = A
@@ -155,7 +173,7 @@ public class Cell {
 
       if(typeN==CELL_TYPE.SOLID)
         fin[i] = computeFi(i, rho, uxN, uyN, Sxx+uxN*uxN-ux*ux, Syy+uyN*uyN-uy*uy, Sxy+uxN*uyN-ux*uy);
-      else if(typeN==CELL_TYPE.EQUILIBRIUM)
+      else if(equilibrium)
         fin[i] = computeFiEq(i, rhoN, uxN, uyN);
       else
         fin[i] = computeFi(i, rhoN, uxN, uyN, SxxN, SyyN, SxyN);
@@ -170,11 +188,11 @@ public class Cell {
       mass += p_simulation.getCell(idNx,idNy).getMassex();
     }
     
-    if (type == CELL_TYPE.L) {
+    if (type == CELL_TYPE.LIQUID) {
       for (int i=1; i<9 ;i++)
         mass += fin[i] - fout[i]; // neighbor is fluid or interface cell
     }
-    else if (type == CELL_TYPE.I) {
+    else if (type == CELL_TYPE.INTERFACE) {
       float[] phiM = new float[9]; // cache fill level of neighbor lattice points
       phiM[0] = rho>0.f ? constrain(mass/rho, 0.f, 1.f) : 0.5f; // don't load phi[n] from memory, instead recalculate it with mass corrected by excess mass
       
@@ -218,8 +236,8 @@ public class Cell {
         int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
         
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if (typeN == CELL_TYPE.L) mass += fin[i] - fout[j];
-        else if (typeN == CELL_TYPE.I || typeN == CELL_TYPE.IL || typeN == CELL_TYPE.IG || typeN == CELL_TYPE.GI) mass += 0.5f * (phiM[j] + phiM[0]) * (fin[i] - fout[j]);
+        if (typeN == CELL_TYPE.LIQUID) mass += fin[i] - fout[j];
+        else if (typeN == CELL_TYPE.INTERFACE || typeN == CELL_TYPE.IL || typeN == CELL_TYPE.IG || typeN == CELL_TYPE.GI) mass += 0.5f * (phiM[j] + phiM[0]) * (fin[i] - fout[j]);
       }
     
       for (int i=1; i<9 ;i++) {
@@ -228,7 +246,7 @@ public class Cell {
         int idNy = mod(p_y+D2Q9_cy[j],p_simulation.getNy());
         
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if (typeN == CELL_TYPE.G) fin[i] = feq[j] - fout[j] + feq[i];
+        if (typeN == CELL_TYPE.GAS) fin[i] = feq[j] - fout[j] + feq[i];
       }
     }
     
@@ -245,14 +263,14 @@ public class Cell {
     
     // ---------------------------------- SURFACE TAG UPDATE ----------------------------------
     
-    if (type==CELL_TYPE.I) {
+    if (type==CELL_TYPE.INTERFACE) {
       boolean TYPE_NO_L = true, TYPE_NO_G = true; // temporary flags for no fluid or gas neighbors
       for (int i=1; i<9 ;i++) {
         int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
         int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        TYPE_NO_L = TYPE_NO_L && (typeN != CELL_TYPE.L);
-        TYPE_NO_G = TYPE_NO_G && (typeN != CELL_TYPE.G);
+        TYPE_NO_L = TYPE_NO_L && (typeN != CELL_TYPE.LIQUID);
+        TYPE_NO_G = TYPE_NO_G && (typeN != CELL_TYPE.GAS);
       }
       if (mass > rhoT || TYPE_NO_G) type = CELL_TYPE.IL; // set flag interface->fluid
       else if (mass < 0.f || TYPE_NO_L) type = CELL_TYPE.IG; // set flag interface->gas
@@ -294,19 +312,20 @@ public class Cell {
     this.Sxy = this._Sxy;
   }
   
-  public void surface1(int p_x, int p_y, LBM p_simulation) { 
+  public void surface1(int p_x, int p_y, LBM p_simulation) {     
     if(type == CELL_TYPE.IL){
       for(int i=1; i<9 ;i++){
         int idNx = mod(p_x+D2Q9_cx[i],p_simulation.getNx());
         int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
 
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if(typeN == CELL_TYPE.IG) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.I);
-        if(typeN == CELL_TYPE.G) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.GI);
+        if(typeN == CELL_TYPE.IG) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE);
+        if(typeN == CELL_TYPE.GAS) p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.GI);
       }
     }
   }
   
+  // GI : can change data ??
   public void surface2(int p_x, int p_y, LBM p_simulation) { 
     if(type == CELL_TYPE.GI){
       float rhon=0.f, uxn=0.f, uyn=0.f, counter=0.f; // average over all fluid/interface neighbors
@@ -316,7 +335,7 @@ public class Cell {
         int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
 
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if (typeN == CELL_TYPE.L || typeN == CELL_TYPE.I || typeN == CELL_TYPE.IL) { // fluid or interface or (interface->fluid) neighbor
+        if (typeN == CELL_TYPE.LIQUID || typeN == CELL_TYPE.INTERFACE || typeN == CELL_TYPE.IL) { // fluid or interface or (interface->fluid) neighbor
           counter += 1.f;
           rhon += p_simulation.getCell(idNx,idNy).getDensity();
           uxn += p_simulation.getCell(idNx,idNy).getVelocityX();
@@ -344,34 +363,37 @@ public class Cell {
         int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
 
         CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-        if(typeN == CELL_TYPE.L || typeN == CELL_TYPE.IL)
-          p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.I);
+        if(typeN == CELL_TYPE.LIQUID || typeN == CELL_TYPE.IL)
+          if(p_simulation.getCell(idNx,idNy).isEquilibrium() && typeN==CELL_TYPE.LIQUID)
+            type = CELL_TYPE.INTERFACE;
+          else
+            p_simulation.getCell(idNx,idNy).setType(CELL_TYPE.INTERFACE);
       }
     }
   }
   
   public void surface3(int p_x, int p_y, LBM p_simulation) { 
-    if(type==CELL_TYPE.SOLID) return;
+    if(type==CELL_TYPE.SOLID || (equilibrium && type==CELL_TYPE.LIQUID)) return;
     
     float rhon = rho;
     float massn = mass;
     float massexn = 0.f;
     
-    if (type==CELL_TYPE.L || type==CELL_TYPE.IL) {
-      if (type==CELL_TYPE.IL) type = CELL_TYPE.L;
+    if (type==CELL_TYPE.LIQUID || type==CELL_TYPE.IL) {
+      if (type==CELL_TYPE.IL) type = CELL_TYPE.LIQUID;
       massexn = massn - rhon; // dump mass-rho difference into excess mass
       massn = rhon; // fluid cell mass has to equal rho
       phi = 1.f;
     }
-    else if (type==CELL_TYPE.I || type==CELL_TYPE.GI) {
-      if (type==CELL_TYPE.GI)  type = CELL_TYPE.I;
+    else if (type==CELL_TYPE.INTERFACE || type==CELL_TYPE.GI) {
+      if (type==CELL_TYPE.GI)  type = CELL_TYPE.INTERFACE;
       massexn = massn > rhon ? massn - rhon : massn < 0.f ? massn : 0.f; // allow interface cells with mass>rho or mass<0
       massn = constrain(massn, 0.f, rhon);
       phi = rhon > 0.f ? massn / rhon : 0.5f; // calculate fill level for next step (only necessary for interface cells)
     }
-    else if (type==CELL_TYPE.G || type==CELL_TYPE.IG) {
+    else if (type==CELL_TYPE.GAS || type==CELL_TYPE.IG) {
       if (type==CELL_TYPE.IG) {
-        type = CELL_TYPE.G;
+        type = CELL_TYPE.GAS;
         rho = 1.f;
         ux = 0.f;
         uy = 0.f;
@@ -387,7 +409,7 @@ public class Cell {
       int idNy = mod(p_y+D2Q9_cy[i],p_simulation.getNy());
       
       CELL_TYPE typeN = p_simulation.getCell(idNx,idNy).getType();
-      if(typeN == CELL_TYPE.L || typeN == CELL_TYPE.I || typeN == CELL_TYPE.IL || typeN == CELL_TYPE.GI) counter++;
+      if(typeN == CELL_TYPE.LIQUID || typeN == CELL_TYPE.INTERFACE || typeN == CELL_TYPE.IL || typeN == CELL_TYPE.GI) counter++;
     }
     
     mass = massn + ((counter > 0) ? 0.f : massexn); // if excess mass can't be distributed to neighboring interface or fluid cells, add it to local mass (ensure mass conservation)
