@@ -24,6 +24,7 @@ public class Cell {
   private float massex;
   
   private int bubbleId;
+  private int bubbleIdTmp;
   
   // --------------------------------------------- DESTRUCTOR / CONSTRUCTOR ----------------------------------------------  
   public Cell(CELL_TYPE p_type, float p_rho, float p_ux, float p_uy, float p_phi, boolean p_eq) {
@@ -69,6 +70,7 @@ public class Cell {
   public float getMass() { return this.mass; }
   public float getMassex() { return this.massex; }
   public int getBubbleId() { return this.bubbleId; }
+  public int getBubbleIdTmp() { return this.bubbleIdTmp; }
   
   // ------------------------------------------------------ SETTERS ------------------------------------------------------
   public void setType(CELL_TYPE p_type) { this.type = p_type; }
@@ -77,6 +79,7 @@ public class Cell {
   public void setVelocityX(float p_velocity) { this.ux = p_velocity; }
   public void setVelocityY(float p_velocity) { this.uy = p_velocity; }
   public void setBubbleId(int p_bubbleId) { this.bubbleId = p_bubbleId; }
+  public void setBubbleIdTmp(int p_bubbleIdTmp) { this.bubbleIdTmp = p_bubbleIdTmp; }
   
   public void pushType(CELL_TYPE p_type) { 
     switch (p_type) {

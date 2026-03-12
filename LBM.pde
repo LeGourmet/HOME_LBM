@@ -19,7 +19,7 @@ public class LBM {
   public LBM(int p_Nx, int p_Ny) {
     this.Nx = max(1,p_Nx);
     this.Ny = max(1,p_Ny);
-    this.B = this.Nx*this.Ny;
+    this.B = this.Nx*this.Ny+((this.Nx*this.Ny)%2);
     this.t  = 0;
     
     this.GlobalForceX = 0.f;
@@ -123,7 +123,7 @@ public class LBM {
       for(int j=0; j<Ny ;j++)
         grid[i][j].init(i, j, this);
     
-    initBubbles();
+    updateBubbles();
   }
   
   void doTimeStep(){    
@@ -157,113 +157,91 @@ public class LBM {
   }
   
   // ----------------------------------------------------- FUNCTIONS BUBBLES -----------------------------------------------------
-  void initBubbles(){
-    // ------- Connect Component Labelling (=> flood fill) -------
-    int currentLabel = 0;
-    Stack<Integer> coords = new Stack<>();
-    
+  void updateBubbles() {
+    // --------------------------- graph generation ---------------------------
     for(int i=0; i<Nx ;i++) {
-      for(int j=0; j<Ny ;j++) {
-        if(grid[i][j].getBubbleId() != -1 || (grid[i][j].getType() != CELL_TYPE.INTERFACE && grid[i][j].getType() != CELL_TYPE.GAS)) continue;
-        coords.clear();
-        coords.push(j*Nx+i);
-        
-        while (!coords.empty()) {
-            int coord = coords.pop();
-            int coordX = coord%Nx;
-            int coordY = coord/Nx;
-            
-            if(grid[coordX][coordY].getBubbleId() != -1) continue;
-            
-            grid[coordX][coordY].bubbleId = currentLabel;
-            bubbles[currentLabel].numberCells++;
-            bubbles[currentLabel].volumeInit += 1.f-grid[coordX][coordY].getPhi();
-            
-            for (int k=1; k<9 ;k++) {
-              int offsetX = mod(coordX+D2Q9_cx[k],Nx);
-              int offsetY = mod(coordY+D2Q9_cy[k],Ny);
-              if(grid[offsetX][offsetY].getBubbleId() == -1 && (grid[offsetX][offsetY].getType() == CELL_TYPE.INTERFACE || grid[offsetX][offsetY].getType() == CELL_TYPE.GAS)) coords.push(offsetY*Nx+offsetX);
-            }
+      for(int j=0; j<Ny ;j++) {        
+        if (!(grid[i][j].getType()==CELL_TYPE.INTERFACE || grid[i][j].getType()==CELL_TYPE.GAS)) {
+          if(grid[i][j].getBubbleId()>=0) bubbles[grid[i][j].getBubbleId()].numberCells--;
+          grid[i][j].setBubbleIdTmp(-1);
+          continue;
         }
-        
-        //println("Bubble :", currentLabel, " with", bubbles[currentLabel].numberCells, " cells, volume :", bubbles[currentLabel].volumeInit);
-        
-        currentLabel++;
+        int minId = i*Ny + j;
+        for (int k=1; k<9 ;k+=1) {
+          int idI = mod(i+D2Q9_cx[k],Nx);
+          int idJ = mod(j+D2Q9_cy[k],Ny);
+          int m = idI*Ny + idJ;
+          if (grid[idI][idJ].getType()==CELL_TYPE.INTERFACE || grid[idI][idJ].getType()==CELL_TYPE.GAS) minId = min(minId,m);
+        }
+        grid[i][j].setBubbleIdTmp(minId);
       }
     }
     
-    // ----------------------- Bubble Init -----------------------
-    for(int id=0; id<B ;id++) {
-      if(bubbles[id].numberCells==0) continue;
-      bubbles[id].rho = cs2;
-      bubbles[id].volume = bubbles[id].volumeInit;
-    }
-  }
-  
-  void updateBubbles(){
-    for(int i=0; i<Nx ;i++) {
-      for(int j=0; j<Ny ;j++) {
-        int idB = grid[i][j].getBubbleId();
-        if(!(idB>=0 && grid[i][j].getType()==CELL_TYPE.LIQUID)) continue; // if(!split) continue;
-                
-        bubbles[idB].numberCells--;
-        if(bubbles[idB].numberCells<=0) bubbles[idB].reset();
-        grid[i][j].setBubbleId(-1);
+    boolean unionContinue = true;
+    while(unionContinue) {
+      unionContinue = false;
+      // --------------------------- graph reduction to local min id ---------------------------
+      for(int i=0; i<Nx ;i++) {
+        for(int j=0; j<Ny ;j++) {
+          if (!(grid[i][j].getType()==CELL_TYPE.INTERFACE || grid[i][j].getType()==CELL_TYPE.GAS)) continue;
+          int n = i*Ny + j;
+          int m = grid[i][j].getBubbleIdTmp();
+          if(m==n) continue;
+          while(n!=m){
+            n = m;
+            m = grid[m/Ny][m%Ny].getBubbleIdTmp(); 
+          }
+          grid[i][j].setBubbleIdTmp(n);
+        }
       }
-    }
-    
-    for(int id=0; id<B ; id++)
-      if(bubbles[id].numberCells>0) 
-        bubbles[id].deprecated = true;
-    
-    Stack<Integer> coords = new Stack<>();
-        
-    for(int i=0; i<Nx ;i++) {
-      for(int j=0; j<Ny ;j++) {
-        int idN = grid[i][j].getBubbleId(); 
-        CELL_TYPE typeN = grid[i][j].getType();
-        if((idN<0 && !(typeN==CELL_TYPE.INTERFACE || typeN==CELL_TYPE.GAS)) || (idN>=0 && !bubbles[idN].deprecated)) continue; // if(mark || Solid || Liquid)
-        
-        int currentId = -1;
-        for(int id=0; id<B ; id++)
-          if(bubbles[id].numberCells==0) 
-            { currentId=id; break; }
-        // if(currentId==-1) ????
-        
-        coords.clear();
-        coords.push(j*Nx+i);
-        
-        while (!coords.empty()) {
-          int coord = coords.pop();
-          int coordX = coord%Nx;
-          int coordY = coord/Nx;
-          int idC = grid[coordX][coordY].getBubbleId();
-          
-          if(idC>=0 && !bubbles[idC].deprecated) continue; 
-          
-          bubbles[currentId].numberCells++;
-          bubbles[currentId].volume += 1.f-grid[coordX][coordY].getPhi();
-          if(idC >= 0) bubbles[currentId].volumeInit += bubbles[idC].volumeInit/float(bubbles[idC].numberCells); 
-          //if(idC >= 0) bubbles[currentId].volumeInit += (1.f-grid[coordX][coordY].getPhi()) * bubbles[idC].rho / cs2;
-          grid[coordX][coordY].setBubbleId(currentId);
-            
-          for (int n=1; n<9 ;n++) {
-            int offsetX = mod(coordX+D2Q9_cx[n],Nx);
-            int offsetY = mod(coordY+D2Q9_cy[n],Ny);
-            int idO = grid[offsetX][offsetY].getBubbleId();
-            CELL_TYPE typeO = grid[offsetX][offsetY].getType();
-            if((idO<0 && (typeO==CELL_TYPE.INTERFACE || typeO==CELL_TYPE.GAS)) || (idO>=0 && bubbles[idO].deprecated)) coords.push(offsetY*Nx+offsetX); // warning, bad if!
+      
+      // --------------------------- graph local min id union ---------------------------
+      for(int i=0; i<Nx ;i++) {
+        for(int j=0; j<Ny ;j++) {
+          if (!(grid[i][j].getType()==CELL_TYPE.INTERFACE || grid[i][j].getType()==CELL_TYPE.GAS)) continue;
+          int n = grid[i][j].getBubbleIdTmp();
+          for (int k=1; k<9 ;k+=1) {
+            int idI = mod(i+D2Q9_cx[k],Nx);
+            int idJ = mod(j+D2Q9_cy[k],Ny);
+            int m = grid[idI][idJ].getBubbleIdTmp();
+            if ((grid[idI][idJ].getType()==CELL_TYPE.INTERFACE || grid[idI][idJ].getType()==CELL_TYPE.GAS) && m<n) {
+              grid[i][j].setBubbleIdTmp(m);
+              unionContinue = true;
+            }
           }
         }
-        
-        if (bubbles[currentId].volumeInit==0.f) bubbles[currentId].volumeInit = bubbles[currentId].volume;
-        bubbles[currentId].rho = cs2 * bubbles[currentId].volumeInit/bubbles[currentId].volume;
-        //println("bubble " + currentId + ", rho="+bubbles[currentId].rho + ", volumeInit=" + bubbles[currentId].volumeInit + ", volume=" + bubbles[currentId].volume);
-      }
+      }    
     }
     
-    for(int id=0; id<B ; id++)
-      if(bubbles[id].deprecated)
-        bubbles[id].reset();
+    for(int i=0; i<Nx ;i++) {
+      for(int j=0; j<Ny ;j++) {
+        int idBubbleN = grid[i][j].getBubbleIdTmp();
+        int idBubbleN_old = grid[i][j].getBubbleId();
+    
+        if (!(grid[i][j].getType()==CELL_TYPE.INTERFACE || grid[i][j].getType()==CELL_TYPE.GAS)) {
+          grid[i][j].setBubbleId(-1);
+          continue;
+        }
+        
+        idBubbleN = ((t%2)==0) ? idBubbleN-(idBubbleN%2) : idBubbleN+((idBubbleN+1)%2);
+        
+        bubbles[idBubbleN].volume += 1.f-grid[i][j].getPhi();
+        if(idBubbleN_old >= 0) bubbles[idBubbleN].volumeInit += bubbles[idBubbleN_old].volumeInit/float(bubbles[idBubbleN_old].numberCells);
+        bubbles[idBubbleN].numberCells++;
+        
+        grid[i][j].setBubbleId(idBubbleN);
+      }
+    }
+
+    for(int b=0; b<B ;b++){
+      if(bubbles[b].numberCells == 0) continue;
+      
+      if (t%2 == b%2){
+        if (bubbles[b].volumeInit == 0.f) bubbles[b].volumeInit = bubbles[b].volume;
+        bubbles[b].rho = cs * bubbles[b].volumeInit / bubbles[b].volume;
+      } else bubbles[b].reset();
+    }
+    
   }
+  
 }
