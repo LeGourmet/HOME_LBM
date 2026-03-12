@@ -205,7 +205,7 @@ public class LBM {
             int idJ = mod(j+D2Q9_cy[k],Ny);
             int m = grid[idI][idJ].getBubbleIdTmp();
             if ((grid[idI][idJ].getType()==CELL_TYPE.INTERFACE || grid[idI][idJ].getType()==CELL_TYPE.GAS) && m<n) {
-              grid[i][j].setBubbleIdTmp(m);
+              grid[n/Ny][n%Ny].setBubbleIdTmp(m);
               unionContinue = true;
             }
           }
