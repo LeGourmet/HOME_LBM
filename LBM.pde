@@ -183,10 +183,9 @@ public class LBM {
       // --------------------------- graph reduction to local min id ---------------------------
       for(int i=0; i<Nx ;i++) {
         for(int j=0; j<Ny ;j++) {
-          if (!(grid[i][j].getType()==CELL_TYPE.INTERFACE || grid[i][j].getType()==CELL_TYPE.GAS)) continue;
           int n = i*Ny + j;
           int m = grid[i][j].getBubbleIdTmp();
-          if(m==n) continue;
+          if(m<0 || m==n) continue;
           while(n!=m){
             n = m;
             m = grid[m/Ny][m%Ny].getBubbleIdTmp(); 
@@ -213,28 +212,31 @@ public class LBM {
       }    
     }
     
+    // change for update label => update bubbles => clear old label => clear old bubbles
+    
+    
     for(int i=0; i<Nx ;i++) {
       for(int j=0; j<Ny ;j++) {
         int idBubbleN = grid[i][j].getBubbleIdTmp();
         int idBubbleN_old = grid[i][j].getBubbleId();
     
-        if (!(grid[i][j].getType()==CELL_TYPE.INTERFACE || grid[i][j].getType()==CELL_TYPE.GAS)) {
-          grid[i][j].setBubbleId(-1);
-          continue;
-        }
-        
-        idBubbleN = ((t%2)==0) ? idBubbleN-(idBubbleN%2) : idBubbleN+((idBubbleN+1)%2);
-        
-        bubbles[idBubbleN].volume += 1.f-grid[i][j].getPhi();
-        if(idBubbleN_old >= 0) bubbles[idBubbleN].volumeInit += bubbles[idBubbleN_old].volumeInit/float(bubbles[idBubbleN_old].numberCells);
-        bubbles[idBubbleN].numberCells++;
-        
-        grid[i][j].setBubbleId(idBubbleN);
+        if (idBubbleN>=0) {
+          idBubbleN = ((t%2)==0) ? idBubbleN-(idBubbleN%2) : idBubbleN+((idBubbleN+1)%2);
+          
+          bubbles[idBubbleN].volume += 1.f-grid[i][j].getPhi();
+          if(idBubbleN_old >= 0) bubbles[idBubbleN].volumeInit += bubbles[idBubbleN_old].volumeInit/float(bubbles[idBubbleN_old].numberCells);
+          bubbles[idBubbleN].numberCells++;
+          
+          grid[i][j].setBubbleId(idBubbleN);
+        } else { grid[i][j].setBubbleId(-1); }
       }
     }
 
     for(int b=0; b<B ;b++){
-      if(bubbles[b].numberCells == 0) continue;
+      if(bubbles[b].numberCells == 0) {
+        bubbles[b].reset();
+        continue;
+      }
       
       if (t%2 == b%2){
         if (bubbles[b].volumeInit == 0.f) bubbles[b].volumeInit = bubbles[b].volume;
